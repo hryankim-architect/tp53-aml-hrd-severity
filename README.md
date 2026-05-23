@@ -1,150 +1,277 @@
-# `bioinformatics-repo-scaffold-template`
-
-> **Template repository for capability-portrait bioinformatics projects.**
-> Click *Use this template* to start a new repo with the same shared substrate:
-> audit-chained NDJSON ledger, MLflow tracking, English-only CI, anti-scope-creep
-> guardrails, and a single `make run` entry point that reproduces the demo
-> end-to-end on a single workstation in under N minutes.
-
-A house style for reproducible bioinformatics R&D.
-
----
-
-## What this template gives you
-
-A new repo created from this template ships with:
-
-- **One-command demo**: `make run` reproduces the pipeline on a tiny public-data subset.
-- **Substrate hooks**: every run emits a hash-chained NDJSON audit entry, tracks
-  parameters and metrics to MLflow, and exposes a canary smoke test that the
-  Polish-Phase5 `lab_semantic_check.py` can probe.
-- **Anti-scope-creep guardrails**: required `docs/what-is-out-of-scope.md`,
-  CI runtime budget, and `data/manifest.yaml` cap that forces explicit friction
-  when adding samples.
-- **English-only CI**: CJK-character scanner fails CI if non-English content
-  enters a public artifact (lessons-learned, code comments, docs).
-- **Reproducibility baseline**: pinned dependencies via `pyproject.toml`,
-  containerless `uv` workflow, no external services required for the demo.
-- **Honest-scope README template**: the six-line preamble below is enforced
-  in CI; production framing and lab-scope framing are kept distinct.
-
----
-
-## The honest-scope preamble (template — paste into the new repo's README)
-
-```markdown
-# <new-repo-name>
+# `tp53-aml-hrd-severity`
 
 > **Capability portrait, not a research result.** Public data is intentionally
 > subsetted to keep the demo small and reproducible on a single workstation.
 
-**What this shows**: <one-line capability claim>
+**What this shows**: TP53-mutation-driven HRD severity scoring for AML, end-to-end
+from open-tier TCGA-LAML mutation calls through to a Cox / Kaplan-Meier
+survival readout on the cohort.
 
-**Reproducibility**: `make run` produces the demo output in < N minutes on a
-single Mac/Linux box.
+**Reproducibility**: `make data && make run` produces the demo output in under
+two minutes on a single Mac/Linux box. No GPU, no cloud credentials.
 
-**Substrate**: emits audit (NDJSON), tracks MLflow runs, observable via
-AgentOps SSE.
+**Substrate**: emits audit (NDJSON hash-chained ledger), tracks MLflow runs,
+and exposes a canary smoke test that the Polish-Phase5
+`lab_semantic_check.py` probe can call.
 
 **Production framing**: A version of this method ran at full cohort scale on
-proprietary data during my time in industry. The lab version here proves the
-*method* and the *engineering*, not the result. See
-[`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md).
-```
-
-The lint job in `.github/workflows/ci.yml` checks that the new repo's README
-contains the phrase "Capability portrait, not a research result." If a
-contributor strips the preamble, CI fails.
+TCGA + BeatAML + internal cohorts during my time directing clinical
+bioinformatics at Gilead, calibrated against scarHRD signatures. The lab
+version here proves the *method* and the *engineering* on the subset of
+TCGA-LAML that is fully share-able, not the result at production statistical
+power. See [`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md).
 
 ---
 
-## Layout
+## The clinical question
 
-```
-.
-├── README.md                # This file (replaced per new repo)
-├── LICENSE                  # MIT
-├── Makefile                 # data | run | test | report | clean
-├── pyproject.toml           # uv-managed; pinned versions
-├── .github/
-│   └── workflows/
-│       ├── ci.yml           # ruff + pytest + scope-preamble lint
-│       └── english-only.yml # CJK character scanner
-├── data/
-│   ├── .gitignore           # raw data never committed
-│   └── manifest.yaml        # public URLs + checksums for the tiny subset
-├── src/tp53_hrd/
-│   ├── __init__.py
-│   ├── pipeline.py          # CLI entry; demonstrates audit + tracking pattern
-│   ├── audit.py             # NDJSON hash-chained ledger emit
-│   ├── tracking.py          # MLflow run wrapper
-│   └── canary.py            # smoke test interface for lab_semantic_check.py
-├── tests/
-│   ├── test_pipeline.py
-│   └── test_canary.py
-├── notebooks/
-│   └── demo.ipynb           # rendered output committed alongside .ipynb
-├── docs/
-│   ├── architecture.md      # substrate integration diagram
-│   └── what-is-out-of-scope.md  # required anti-scope-creep page
-└── scripts/
-    └── run_lab.sh           # one-liner to execute on a lab node
-```
+Acute myeloid leukemia patients with TP53 mutations have notoriously short
+overall survival, and a subset behaves like a homologous-recombination-deficient
+(HRD) phenotype — even though AML is not the disease that defined the HRD
+concept. The hypothesis this method codifies:
 
-Rename `src/tp53_hrd/` to your project package name when creating the new
-repo. The substrate modules (`audit.py`, `tracking.py`, `canary.py`) are
-designed to be copy-and-edit, not pip-installed, so each capability repo can
-diverge as needed without coordinating releases.
+> A composite of TP53 variant *tier* (canonical hotspot vs non-hotspot missense
+> vs truncating LOF) and the *clonality* of the variant (VAF as a bi-allelic
+> proxy) should rank patients by HRD-like severity, and that ranking should
+> separate overall survival.
+
+The pipeline computes the score, bins it into low / moderate / high bands,
+and runs both a 3-band Kaplan-Meier with multivariate log-rank and a Cox
+proportional-hazards regression on the continuous score.
 
 ---
 
-## Quickstart (in a new repo created from this template)
+## End-to-end pipeline
+
+```
+data/tcga-laml/mafs/*.maf.gz           data/tcga-laml/clinical.json
+        │                                       │
+        ▼                                       ▼
+load_combined_maf                       load_or_fetch_clinical
+        │                                       │
+        ▼                                       │
+patient_from_barcode (collapse aliquots)        │
+        │                                       │
+        └───────────────┬───────────────────────┘
+                        ▼
+                  select_cohort (seed=42)
+                        │
+                        ▼
+                 compute_severity (tier + VAF bonus)
+                        │
+       ┌────────────────┼──────────────────────────┐
+       ▼                ▼                          ▼
+  per_patient_records   make_km_plot          cox_severity +
+   (JSON output)        (PNG, 3-band KM)      logrank tests
+       │                │                          │
+       └────────────────┴──────────────────────────┘
+                        ▼
+                  artifacts/
+                  ├── cohort-15-results.json
+                  ├── km-severity-bands.png
+                  └── survival_summary.json
+```
+
+Every stage emits a NDJSON audit entry to `audit/local-demo.ndjson`. If
+`AUDIT_HOST` is set, entries also POST to the substrate audit-API. MLflow
+metrics flow to `MLFLOW_TRACKING_URI` if configured. Both default to no-ops,
+so the demo runs cleanly on a fresh checkout.
+
+---
+
+## Quickstart
 
 ```bash
-# 1. Install deps
-uv sync
+# 1. Install pinned dependencies
+make install                  # or: uv sync --extra dev
 
-# 2. Run the demo end-to-end
-make run
+# 2. Fetch TCGA-LAML aliquot MAFs (153 files, ~1.5 MB tarball) and clinical
+make data                     # populates data/tcga-laml/
 
-# 3. Run tests
+# 3. Run the end-to-end pipeline
+make run                      # writes 3 files to artifacts/, < 2 seconds
+
+# 4. Run the test suite (~90 tests, includes fixture-based integration)
 make test
 
-# 4. Produce the HTML report
-make report
+# 5. Run the canary smoke test (used by lab_semantic_check.py)
+make canary
 ```
 
-The demo prints an audit entry to `audit/local-demo.ndjson` and (if the
-`AUDIT_HOST` env var is set) posts it to the substrate audit-API. MLflow runs
-appear at `MLFLOW_TRACKING_URI` if configured.
+---
+
+## Real-data results (the climax)
+
+Pipeline output on the n=15 TCGA-LAML cohort (7 TP53-mutant + 8 wild-type
+controls, seed=42 deterministic selection):
+
+| Cohort metric | Value |
+|---|---|
+| TP53-mutant patients (eligible) | 7 |
+| WT controls | 8 |
+| Tier distribution | 1A · 3B · 3C · 8 WT |
+| Severity band distribution | 5 high · 2 moderate · 8 low |
+
+Kaplan-Meier per severity band:
+
+| Band | n | Events | Median OS (days) | 1-yr surv | 3-yr surv |
+|---|---|---|---|---|---|
+| low  | 8 | 7 | 822 | 0.625 | 0.375 |
+| moderate | 2 | 2 | 151 | — | — |
+| high | 5 | 5 | 214 | 0.20 | — |
+
+Statistical tests:
+
+| Test | Value |
+|---|---|
+| Multivariate log-rank p (3-band) | **0.031** |
+| Log-rank p (high vs not-high) | 0.065 |
+| Cox HR (severity_score) | **8.39** (95% CI 1.33 – 52.94) |
+| Cox p-value | **0.024** |
+| Concordance index | 0.67 |
+
+The high-band median OS is **3.8× shorter** than the low-band median (214
+vs 822 days), with a statistically significant 3-band log-rank separation
+even at n=15. The Cox HR direction confirms the score is monotonic with
+hazard: a unit increase in `severity_score` (0 → 1) corresponds to an 8.4×
+hazard increase.
+
+These numbers are **demonstrative**, not publication-grade — n=15 is below
+the cohort size most clinical studies use — but they show the method
+*works on the subset of TCGA-LAML that can be fully shared in a public repo*.
+
+---
+
+## Per-patient JSON output (sample)
+
+`artifacts/cohort-15-results.json` contains one record per patient. Example
+for the Tier A hotspot patient (R248Q, subclonal VAF):
+
+```json
+{
+  "patient_id": "TCGA-AB-2935",
+  "group": "TP53-mut",
+  "tier": "A",
+  "variants": [
+    {
+      "hgvsp": "p.R248Q",
+      "variant_classification": "Missense_Mutation",
+      "t_alt_count": 45,
+      "t_depth": 103,
+      "vaf": 0.437
+    }
+  ],
+  "max_vaf": 0.437,
+  "vaf_biallelic": false,
+  "severity_score": 0.75,
+  "severity_band": "high",
+  "os_days": 61.0,
+  "os_event": 1
+}
+```
+
+The full 15-record JSON is the canonical input for any downstream comparison
+(e.g. plotting against external HRD scores).
+
+---
+
+## Sample selection — honest scope
+
+The plan started at n=30 (17 TP53-mutant + 13 WT). Two open-tier ceilings
+shrank the eligible cohort:
+
+1. **MAF-tier ceiling**: TCGA-LAML's open-access MAF tarball contains
+   variant calls for ~131 aliquots, of which **only 9** carry a TP53
+   variant. The controlled-access tier likely has more (~20 expected from
+   AML literature at ~10–15% TP53 mutation rate) but requires dbGaP
+   credentials.
+
+2. **Clinical-tier ceiling**: of those 9 TP53-mutant aliquots, **8** collapse
+   to unique patients (one patient was sequenced twice as separate aliquots).
+   Of those 8 patients, **1 has `vital_status=Dead` but no `days_to_death`**
+   in the open clinical record. Without a death date the patient is
+   unusable for survival analysis and is dropped by `clinical.parse_clinical`.
+
+Net eligible cohort: **7 TP53-mutant patients with usable survival** +
+**8 randomly selected WT controls** (seed=42) = n=15.
+
+The pipeline still demonstrates every method step end-to-end. The README
+just doesn't pretend the n is bigger than it is.
 
 ---
 
 ## Substrate environment variables
 
 The substrate hooks read these at runtime; the defaults are no-ops, so the
-demo works without the substrate present:
+demo runs cleanly without the Polish-Phase5 substrate present:
 
 | Var | Default | What it does |
 |---|---|---|
-| `AUDIT_HOST` | unset | If set, audit entries are POSTed to `http://${AUDIT_HOST}/events`. |
+| `AUDIT_HOST` | unset | If set, audit entries POST to `http://${AUDIT_HOST}/events`. |
 | `MLFLOW_TRACKING_URI` | unset | If set, MLflow runs are tracked at this URI. |
 | `TP53_HRD_CANARY_FIXTURE` | `tests/fixtures/canary.json` | Path used by `canary.py` for the deterministic smoke test. |
-| `TP53_HRD_RUN_NAME` | derived | Overrides the run name in audit + MLflow entries. |
 
-On a Polish-Phase5 lab node, `scripts/run_lab.sh` sets these to the lab
-defaults before invoking `make run`.
+On a Polish-Phase5 lab node, `scripts/run_lab.sh` exports these to the lab
+defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 
 ---
 
-## What this template intentionally does not do
+## Repo layout
 
-- It does not install a package globally; each repo owns its own deps.
-- It does not enforce a directory structure beyond the substrate hooks.
-- It does not gate the demo on cloud credentials.
-- It does not commit raw data — only manifests, checksums, and licenses.
-- It does not impose a specific deconvolution / segmentation / annotation
-  tool — those are project-level choices.
+```
+.
+├── README.md                       # This file
+├── LICENSE                         # MIT
+├── Makefile                        # install | data | run | test | report | clean
+├── pyproject.toml                  # uv-managed; pinned versions
+├── .github/workflows/
+│   ├── ci.yml                      # ruff + pytest + scope-preamble lint
+│   └── english-only.yml            # CJK character scanner
+├── data/
+│   ├── manifest.yaml               # (unused for P3 — data is fetched dynamically)
+│   └── tcga-laml/                  # populated by `make data`, git-ignored
+├── src/tp53_hrd/
+│   ├── audit.py                    # NDJSON hash-chained ledger emit
+│   ├── tracking.py                 # MLflow run wrapper (no-op fallback)
+│   ├── canary.py                   # deterministic smoke test
+│   ├── maf.py                      # load + combine aliquot MAFs
+│   ├── annotate.py                 # TP53 tier classification
+│   ├── clinical.py                 # GDC clinical fetch + parse
+│   ├── cohort.py                   # patient-level selection (seed=42)
+│   ├── severity.py                 # composite tier + VAF score
+│   ├── survival.py                 # KM + Cox + log-rank + plot
+│   └── pipeline.py                 # end-to-end CLI entry
+├── tests/                          # 87 tests across all modules
+│   ├── fixtures/
+│   │   ├── canary.json
+│   │   └── cohort-15.tsv           # committed cohort manifest (seed=42)
+│   └── test_*.py
+├── docs/
+│   ├── architecture.md             # substrate integration diagram
+│   └── what-is-out-of-scope.md     # anti-scope-creep ledger
+└── scripts/
+    ├── run_lab.sh                  # one-liner for Polish-Phase5 lab nodes
+    └── check_english_only.py       # CJK scanner used by CI
+```
+
+---
+
+## What this repo does not do
+
+See [`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md) for the
+full ledger. Short version: no production-scale claims, no copy-number-based
+LOH verification, no scarHRD R-package integration, no multi-cohort
+meta-analysis, no therapy-response prediction. Those belong to the
+production version of this method, not the capability portrait.
+
+---
+
+## Lineage
+
+This repo was created from
+[`bioinformatics-repo-scaffold-template`](https://github.com/hryankim-architect/bioinformatics-repo-scaffold-template),
+the shared scaffold that every capability-portrait repo in the quartet
+(P1 / P2 / P3 / P4) inherits.
 
 ---
 

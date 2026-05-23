@@ -1,70 +1,141 @@
-# What is out of scope
+# What is out of scope (P3 — `tp53-aml-hrd-severity`)
 
-This file is **required** in every repo created from the scaffold template.
-The CI lint job verifies that this file exists; the PR template references
-it as part of the review checklist.
+This file is the anti-scope-creep ledger for the P3 capability portrait.
+The repo's value comes from being *small and complete* — every item below
+is something a reviewer might reasonably ask for that the v0.1 demo
+deliberately does not attempt.
 
-## Why this file exists
+If a future PR proposes any of these, the contributor must answer one
+question: **why is this still out of scope?** If the answer is good, edit
+this file in the same PR. If not, the PR doesn't land.
 
-A capability-portrait repo's value comes from being *small and complete*. The
-single largest risk to that value is the steady accumulation of "while we're
-here, let's also..." additions. This file is the anti-scope-creep ledger.
-If a PR proposes something on this list, the PR template asks the contributor
-to answer one question:
+---
 
-> Why is this still out of scope?
+## Statistical-power claims
 
-If the answer is good, edit this file in the same PR. If the answer is not
-good, the PR doesn't land.
+n=15 (7 TP53-mutant + 8 WT) is below standard clinical-study power. The
+Cox HR (8.39, 95% CI 1.33–52.94, p=0.024) and the 3-band log-rank p
+(0.031) are *demonstrative*, not conclusive. The wide confidence intervals
+reflect this — they are the right output for the input sample size, not
+an artifact to be hidden.
 
-## Default out-of-scope items
+**Why out of scope**: Inflating the cohort would require either the
+controlled-access tier (dbGaP credentials) or pooling external cohorts.
+Either move expands the repo's data plane beyond the open subset, which
+breaks the "small and reproducible on a single workstation" contract.
 
-(Copy and edit these into the derived repo's `what-is-out-of-scope.md`.)
+---
 
-- **Statistical-power claims**. The demo uses a tiny public subset; effect
-  sizes and p-values are illustrative, not conclusive.
-- **Full-cohort reproduction**. Adding samples beyond the manifest cap
-  requires editing both `data/manifest.yaml` and the README's
-  "minimum subset" claim.
-- **Multi-cohort meta-analysis**. Out of scope unless this repo's capability
-  *is* meta-analysis.
-- **Production hardening** (HA, RBAC, multi-tenant). The substrate provides
-  the foundation; the capability portrait does not re-implement it.
-- **Cost optimization for cloud deployment**. The demo runs on a single
-  workstation; cloud cost is by definition out of scope.
+## Controlled-access tier expansion
 
-## Per-project out-of-scope items
+The TCGA-LAML controlled-access tier likely contains ~20 TP53-mutant
+patients (vs the 8 in the open tier) and richer clinical fields
+(cytogenetics, blast counts, FAB subtypes). Pulling them would close the
+"open-tier ceiling" gap described in the README.
 
-The derived repo replaces this section with its own list, written at v0.1
-and amended as PRs land. Examples:
+**Why out of scope**: Controlled-access requires a dbGaP DAR application,
+PI sign-off, and a private data plane. The capability portrait's purpose
+is to be runnable by anyone who clones the repo.
 
-### P3 (`tp53-aml-hrd-severity`)
-- BeatAML extension
-- Therapy-response prediction
-- Multi-cohort survival meta-analysis
+---
 
-### P1 (`healthomics-lab-orchestrator`)
-- Production-scale parallelism
-- Full reference genome (uses chr22 subset)
-- Differential expression analysis
+## BeatAML extension
 
-### P2 (`multiqc-foundation-gate`)
-- Production-scale training corpus
-- Cross-pipeline transfer learning
-- Active learning loop
+The BeatAML cohort (~600+ patients with WES + clinical + ex-vivo drug
+response) would give the score a second cohort to calibrate against.
 
-### P4 (`hnscc-time-multimodal`)
-- DeepLIIF virtual stain translation (deferred to v0.2)
-- Foundation-model embeddings (Approach C)
-- Patient-level paired integration (impossible across PMC and TCGA cohorts)
-- Outcome prediction (immunotherapy response)
+**Why out of scope**: BeatAML adds a second data plane, doubles the
+download budget, and would force the severity score to negotiate
+cross-platform calling differences. The production version of this method
+already ran on BeatAML internally; the lab demo proves the method works
+on one cohort.
 
-## How to add an item
+---
+
+## Multi-cohort survival meta-analysis
+
+A real production HRD severity claim would fit the score on TCGA, validate
+on BeatAML, and report a pooled HR with random-effects meta-analysis.
+
+**Why out of scope**: Meta-analysis multiplies the cohort handling, the
+statistical assumptions, and the "did you really beat existing scores?"
+defense surface — all of which belong to a paper, not a capability
+portrait.
+
+---
+
+## scarHRD signature calibration
+
+scarHRD is the standard R package for genome-wide HRD signature scoring
+from SNP-array or sequencing copy-number data. The production version of
+this severity score was calibrated against scarHRD output as the ground
+truth.
+
+**Why out of scope**: scarHRD requires SNP-array or matched-normal WGS
+inputs that are not in TCGA-LAML's open tier, plus a heavy R dependency
+(R + Bioconductor) that breaks the "uv sync, single Python venv"
+reproducibility promise.
+
+---
+
+## Copy-number-based LOH verification
+
+The current severity score uses VAF ≥ 0.5 as a bi-allelic proxy. A real
+LOH call would compare the VAF to local copy number from segmented SCNV
+data, accounting for tumor purity.
+
+**Why out of scope**: SCNV calls and tumor-purity estimates would require
+a second data tier (allele-specific copy number) and a purity estimator
+(e.g. ASCAT or FACETS), both of which break the "VAF as a clean proxy
+that the open MAF gives us for free" contract.
+
+---
+
+## Co-occurring chromosomal events (chr5/7 loss, complex karyotype)
+
+TP53-mutant AML is enriched for chr5/7 deletions and complex karyotypes,
+both of which independently worsen prognosis. A real severity score would
+add a +1 bonus for these.
+
+**Why out of scope**: Cytogenetics is in TCGA-LAML controlled access; the
+open clinical fetch returns vital status + age + follow-up but not
+karyotype annotations. Adding this would require either the controlled-
+access tier or a separate cytogenetics manifest.
+
+---
+
+## Therapy-response prediction
+
+The TP53-HRD severity score *describes* prognosis under standard-of-care
+induction. It does not predict response to specific drug classes (HMAs,
+venetoclax combinations, PARP inhibitors).
+
+**Why out of scope**: Response prediction needs per-regimen treatment
+records and post-induction MRD endpoints, neither of which are in the
+open clinical record at the granularity required.
+
+---
+
+## Production hardening
+
+The pipeline runs in a single Python process. There is no HA, no RBAC,
+no multi-tenant isolation, no input streaming, no retry/backoff, no
+distributed orchestration.
+
+**Why out of scope**: The substrate (`audit.py`, `tracking.py`) provides
+the building blocks; the capability portrait does not re-implement them.
+Production hardening belongs to the orchestration project (P1
+`healthomics-lab-orchestrator`), not the analytical method demo.
+
+---
+
+## Adding an item
 
 Open a PR that:
 
-1. Adds the item to the appropriate section above.
-2. Adds a one-sentence reason in italics.
-3. Links to the PR or issue where the item was originally proposed.
+1. Adds the item to the appropriate section above (or creates a new
+   section if none fits).
+2. Adds a one-sentence reason in italics for why it remains out of scope.
+3. Links to the upstream feature request or issue if there is one.
 
 That's it. The friction is intentional.
