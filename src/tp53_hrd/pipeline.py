@@ -1,14 +1,28 @@
-"""End-to-end pipeline entry point.
+"""End-to-end TP53-HRD severity pipeline for TCGA-LAML.
 
-This is the *pattern* that capability-portrait repos inherit. Each repo
-replaces the body of ``run_pipeline`` with the actual bioinformatics work
-(e.g. P3's VCF→HRD score, P1's Nextflow orchestration, P2's QC classifier,
-P4's IHC + genomics calibration), but keeps the surrounding shape::
+The shape mirrors the scaffold template so the audit / tracking / canary
+substrate hooks fire in the same shape across every capability-portrait
+repo::
 
     audit_start  →  tracking_start  →  body  →  tracking_end  →  audit_end
 
-The body must be deterministic enough that the canary smoke test exercises
-the same code path with a fixture input.
+The body wires together every P3 module:
+
+    load_combined_maf  →  patient_from_barcode  →  load_or_fetch (clinical)
+    →  select_cohort (seed=42)  →  compute_severity  →  per_patient_records
+    →  kaplan_meier_summary / multivariate_logrank_p / two_arm_summary
+    →  cox_severity  →  make_km_plot
+
+Outputs written to ``--out`` (default ``artifacts/``):
+
+* ``cohort-15-results.json`` — one record per patient with tier, VAF,
+  severity score, severity band, OS days, and OS event.
+* ``survival_summary.json`` — KM summary, log-rank p-values, Cox HR / 95% CI.
+* ``km-severity-bands.png`` — Kaplan-Meier curves per severity band.
+
+The pipeline is **idempotent on cached data**: ``make data`` populates
+``data/tcga-laml/mafs/`` and ``data/tcga-laml/clinical.json``; ``make run``
+re-derives the cohort and downstream artifacts deterministically.
 """
 
 from __future__ import annotations
@@ -25,6 +39,21 @@ import click
 import yaml
 
 from tp53_hrd import audit, tracking
+from tp53_hrd.clinical import load_or_fetch as load_or_fetch_clinical
+from tp53_hrd.cohort import DEFAULT_SEED, select_cohort
+from tp53_hrd.maf import load_combined_maf, patient_from_barcode
+from tp53_hrd.severity import compute_severity, per_patient_records
+from tp53_hrd.survival import (
+    cox_severity,
+    kaplan_meier_summary,
+    make_km_plot,
+    multivariate_logrank_p,
+    two_arm_summary,
+)
+
+# Default data layout — see data/manifest.yaml and clinical fetch
+MAF_DIR = Path("data/tcga-laml/mafs")
+CLINICAL_JSON = Path("data/tcga-laml/clinical.json")
 
 
 def _run_id(name: str) -> str:
@@ -79,49 +108,159 @@ def fetch_manifest(manifest_path: Path, out_dir: Path) -> dict[str, Any]:
     return {"inputs": results}
 
 
-def run_pipeline(run_name: str, out_dir: Path) -> dict[str, Any]:
-    """Replace this body in your derived repo. The shape is the contract."""
+def run_pipeline(
+    run_name: str,
+    out_dir: Path,
+    *,
+    maf_dir: Path = MAF_DIR,
+    clinical_json: Path = CLINICAL_JSON,
+    seed: int = DEFAULT_SEED,
+) -> dict[str, Any]:
+    """Run the P3 TP53-HRD pipeline end-to-end.
+
+    Returns a summary dict with cohort counts, severity distribution, and
+    survival statistics. Writes three artifacts under ``out_dir``.
+    """
+    out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     job_id = _run_id(run_name)
+
+    if not maf_dir.exists():
+        raise FileNotFoundError(
+            f"MAF directory {maf_dir} not found. Run `make data` first."
+        )
 
     audit.emit(
         action="pipeline_start",
         job_id=job_id,
-        fields={"out_dir": str(out_dir)},
+        fields={
+            "out_dir": str(out_dir),
+            "maf_dir": str(maf_dir),
+            "clinical_json": str(clinical_json),
+            "seed": seed,
+        },
     )
 
     metrics: dict[str, float] = {}
+    summary: dict[str, Any] = {}
 
     with tracking.run(name=job_id, experiment="tp53_hrd"):
-        tracking.log_params({"run_name": run_name})
-
-        # --- begin body (replace in derived repo) ---
-        # Demo body: write a deterministic JSON artifact and emit one metric.
-        t0 = time.time()
-        artifact = {
+        tracking.log_params({
             "run_name": run_name,
-            "job_id": job_id,
-            "message": "scaffold demo body",
+            "seed": seed,
+            "maf_dir": str(maf_dir),
+        })
+
+        # --- begin body --------------------------------------------------
+
+        # 1. Load + combine MAFs, derive patient IDs
+        t0 = time.time()
+        maf = load_combined_maf(maf_dir)
+        maf["patient_id"] = maf["Tumor_Sample_Barcode"].apply(patient_from_barcode)
+        metrics["n_variant_rows"] = float(len(maf))
+        metrics["n_aliquots"] = float(maf["Tumor_Sample_Barcode"].nunique())
+
+        # 2. Load clinical (cached on disk by load_or_fetch)
+        clinical = load_or_fetch_clinical(clinical_json)
+        metrics["n_clinical_patients"] = float(len(clinical))
+
+        # 3. Cohort selection (deterministic by seed)
+        cohort, cohort_summary = select_cohort(maf, clinical, seed=seed)
+        metrics["n_cohort_total"] = float(cohort_summary.n_total)
+        metrics["n_cohort_mut"] = float(cohort_summary.n_mut)
+        metrics["n_cohort_wt"] = float(cohort_summary.n_wt)
+        for tier, count in cohort_summary.tier_counts.items():
+            metrics[f"tier_{tier}_n"] = float(count)
+
+        audit.emit(
+            action="cohort_built",
+            job_id=job_id,
+            fields={
+                "n_total": cohort_summary.n_total,
+                "n_mut": cohort_summary.n_mut,
+                "n_wt": cohort_summary.n_wt,
+                "tier_counts": cohort_summary.tier_counts,
+            },
+        )
+
+        # 4. Severity score per patient
+        scored = compute_severity(cohort, maf)
+        band_counts = scored["severity_band"].value_counts().to_dict()
+        for band, count in band_counts.items():
+            metrics[f"band_{band}_n"] = float(count)
+
+        # 5. Per-patient JSON output
+        records = per_patient_records(scored, maf)
+        results_path = out_dir / "cohort-15-results.json"
+        with results_path.open("w", encoding="utf-8") as fh:
+            json.dump(records, fh, indent=2, default=str)
+
+        # 6. Survival analysis
+        km_3band = kaplan_meier_summary(scored).to_dict(orient="records")
+        logrank_3band_p = multivariate_logrank_p(scored)
+        two_arm = two_arm_summary(scored)
+        cox = cox_severity(scored)
+
+        metrics["logrank_3band_p"] = logrank_3band_p
+        metrics["logrank_2arm_p"] = two_arm["logrank_p"]
+        metrics["cox_hr"] = cox["hr"]
+        metrics["cox_p"] = cox["p_value"]
+        metrics["cox_concordance"] = cox["concordance"]
+
+        survival_summary = {
+            "km_3band": km_3band,
+            "logrank_3band_p": logrank_3band_p,
+            "two_arm_high_vs_not": {
+                "summary": two_arm["summary"].to_dict(orient="records"),
+                "logrank_p": two_arm["logrank_p"],
+            },
+            "cox_severity_score": cox,
         }
-        artifact_path = out_dir / f"{run_name}.json"
-        with artifact_path.open("w", encoding="utf-8") as fh:
-            json.dump(artifact, fh, indent=2, sort_keys=True)
+        survival_path = out_dir / "survival_summary.json"
+        with survival_path.open("w", encoding="utf-8") as fh:
+            json.dump(survival_summary, fh, indent=2, default=str)
+
+        # 7. KM plot
+        plot_path = out_dir / "km-severity-bands.png"
+        make_km_plot(scored, plot_path)
+
         elapsed_ms = (time.time() - t0) * 1000.0
         metrics["body_elapsed_ms"] = elapsed_ms
-        # --- end body ---
+
+        # --- end body ----------------------------------------------------
 
         tracking.log_metrics(metrics)
+
+        summary = {
+            "cohort": {
+                "n_total": cohort_summary.n_total,
+                "n_mut": cohort_summary.n_mut,
+                "n_wt": cohort_summary.n_wt,
+                "tier_counts": cohort_summary.tier_counts,
+            },
+            "severity_band_counts": band_counts,
+            "logrank_3band_p": logrank_3band_p,
+            "logrank_2arm_p": two_arm["logrank_p"],
+            "cox_hr": cox["hr"],
+            "cox_p": cox["p_value"],
+            "cox_concordance": cox["concordance"],
+            "artifacts": {
+                "per_patient_json": str(results_path),
+                "survival_summary_json": str(survival_path),
+                "km_plot_png": str(plot_path),
+            },
+        }
 
     audit.emit(
         action="pipeline_end",
         job_id=job_id,
-        fields={"metrics": metrics, "artifact_path": str(artifact_path)},
+        fields={"metrics": metrics, "summary": summary},
     )
 
     return {
         "job_id": job_id,
         "metrics": metrics,
-        "artifact_path": str(artifact_path),
+        "summary": summary,
     }
 
 
@@ -154,10 +293,13 @@ def fetch(manifest: Path, out: Path) -> None:
     type=click.Path(file_okay=False, path_type=Path),
     default=Path("artifacts"),
 )
-def run(name: str, out: Path) -> None:
-    """Run the end-to-end pipeline."""
-    result = run_pipeline(name, out)
-    click.echo(json.dumps(result, indent=2))
+@click.option("--maf-dir", type=click.Path(path_type=Path), default=MAF_DIR)
+@click.option("--clinical-json", type=click.Path(path_type=Path), default=CLINICAL_JSON)
+@click.option("--seed", type=int, default=DEFAULT_SEED)
+def run(name: str, out: Path, maf_dir: Path, clinical_json: Path, seed: int) -> None:
+    """Run the end-to-end TP53-HRD severity pipeline."""
+    result = run_pipeline(name, out, maf_dir=maf_dir, clinical_json=clinical_json, seed=seed)
+    click.echo(json.dumps(result, indent=2, default=str))
 
 
 if __name__ == "__main__":
