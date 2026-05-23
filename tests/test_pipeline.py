@@ -24,7 +24,6 @@ from pathlib import Path
 
 from tp53_hrd import audit, pipeline
 
-
 # Minimal MAF schema — only the columns the pipeline actually reads.
 # Two TP53-mutant patients + two non-TP53 patients so the WT pool is non-empty.
 _FIXTURE_MAF = """\
