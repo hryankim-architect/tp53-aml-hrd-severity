@@ -2,7 +2,9 @@
 # Targets are deliberately small. Every repo using this scaffold should be
 # reproducible end-to-end with `make data && make run && make test && make report`.
 
-PYTHON ?= python
+# PYTHON points at the project venv so `make lint`/`make test` work without
+# activating the venv. Override with `make PYTHON=python` to use the shell env.
+PYTHON ?= .venv/bin/python
 UV ?= uv
 PKG := tp53_hrd
 RUN_NAME ?= demo
