@@ -192,7 +192,7 @@ class TestComputeSeverity:
         assert row["severity_band"] == "moderate"
 
     def test_expected_band_distribution_real_data(self):
-        # Saturday 데이터로 예상되는 분포:
+        # Saturday-discovered distribution on the real TCGA-LAML cohort:
         # high: 2813 (B+bonus), 2885 (B+bonus), 2904 (B+bonus), 2935 (A no-bonus), 2938 (C+bonus) = 5
         # moderate: 2829 (C subclonal), 2868 (C subclonal) = 2
         # low: 2 WT
