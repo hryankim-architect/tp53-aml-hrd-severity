@@ -64,30 +64,47 @@ portrait.
 
 ---
 
-## scarHRD signature calibration
+## R-resident scarHRD package itself
 
-scarHRD is the standard R package for genome-wide HRD signature scoring
-from SNP-array or sequencing copy-number data. The production version of
-this severity score was calibrated against scarHRD output as the ground
-truth.
+scarHRD is the canonical R/Bioconductor implementation of LOH + TAI + LST
+counting (the same Telli 2016 metrics this repo computes).
 
-**Why out of scope**: scarHRD requires SNP-array or matched-normal WGS
-inputs that are not in TCGA-LAML's open tier, plus a heavy R dependency
-(R + Bioconductor) that breaks the "uv sync, single Python venv"
-reproducibility promise.
+**Why out of scope**: v0.2 reimplements the Telli 2016 definition directly
+in Python over the GDC ASCAT2 open-tier segment files (see `src/tp53_hrd/scar.py`),
+so the R dependency is no longer needed for the demo. A side-by-side
+agreement check between this Python implementation and the R scarHRD
+output on a shared reference cohort (e.g. TCGA-OVCA, where scarHRD has
+published reference scores) is a defensible v0.3 add — but it requires
+R + Bioconductor install, breaking the "uv sync, single Python venv"
+reproducibility promise. Deferred until a reviewer asks for it.
 
 ---
 
-## Copy-number-based LOH verification
+## AML-specific HRD threshold calibration
 
-The current severity score uses VAF ≥ 0.5 as a bi-allelic proxy. A real
-LOH call would compare the VAF to local copy number from segmented SCNV
-data, accounting for tumor purity.
+The HRD-positive call uses Telli 2016's threshold of ≥ 42, which was
+validated on a Triple-Negative Breast Cancer cohort. The threshold has
+not been formally validated in AML.
 
-**Why out of scope**: SCNV calls and tumor-purity estimates would require
-a second data tier (allele-specific copy number) and a purity estimator
-(e.g. ASCAT or FACETS), both of which break the "VAF as a clean proxy
-that the open MAF gives us for free" contract.
+**Why out of scope**: per-cohort threshold calibration needs a labelled
+ground-truth set (e.g. functional HRD assay, RAD51 foci, BRCA1/2 methylation
+status) that is not available in TCGA-LAML open tier. The README states
+the threshold inheritance honestly and reports per-cohort distribution
+statistics so a reader can see where this cohort actually falls.
+
+---
+
+## Allele-specific copy-number validation against ASCAT3 / FACETS
+
+ASCAT2 and ASCAT3 sometimes call the same chromosome differently;
+FACETS is a popular alternative caller. A full validation would compute
+the HRD score under all three callers and report the agreement.
+
+**Why out of scope**: ASCAT2 is the GDC default and has the broadest
+TCGA coverage; agreement-statistics analysis is a methodological side-
+project. v0.2 records which workflow_type each patient's segment file
+came from in the audit ledger so the comparison is straightforward to
+add if requested.
 
 ---
 

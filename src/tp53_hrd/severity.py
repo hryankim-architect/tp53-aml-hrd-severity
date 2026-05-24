@@ -97,18 +97,63 @@ def severity_band(score: float) -> str:
     return "high"
 
 
+# ---------------------------------------------------------------------------
+# v0.2: composite TP53 + HRD-scar severity (Telli 2016 axis added)
+# ---------------------------------------------------------------------------
+# The HRD-scar score (`scar.compute_hrd_score`) is a count in the
+# range ~0-100+ following the LOH + TAI + LST sum convention; we
+# rescale to [0, 1] using Telli's HRD-positive threshold of 42 as
+# the anchor: hrd_norm = min(1.0, hrd_score / 42).
+# Composite weighting (v0.2): 50% TP53, 50% HRD-scar. The choice is
+# deliberately equal because (a) AML-specific weight learning would
+# need n much greater than 15, and (b) equal-weight is the most
+# transparent default for a capability portrait.
+
+HRD_NORM_ANCHOR: int = 42  # Telli 2016 HRD-positive threshold
+TP53_WEIGHT: float = 0.5
+HRD_WEIGHT: float = 0.5
+
+
+def hrd_norm(hrd_score: int | None) -> float:
+    """Normalise a Telli HRD count to [0, 1] using 42 as the unit anchor."""
+    if hrd_score is None:
+        return 0.0
+    return min(1.0, max(0.0, hrd_score / HRD_NORM_ANCHOR))
+
+
+def composite_severity(
+    tp53_score: float, hrd_score_value: int | None
+) -> float:
+    """Composite severity = TP53_WEIGHT * tp53 + HRD_WEIGHT * hrd_norm(scar)."""
+    return TP53_WEIGHT * tp53_score + HRD_WEIGHT * hrd_norm(hrd_score_value)
+
+
 def compute_severity(
-    cohort: pd.DataFrame, maf: pd.DataFrame
+    cohort: pd.DataFrame,
+    maf: pd.DataFrame,
+    hrd_scar: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Add severity-score columns to a cohort DataFrame.
 
+    Args:
+        cohort: must have ``patient_id`` + ``tier``.
+        maf: must have ``patient_id`` (call ``patient_from_barcode`` first).
+        hrd_scar: optional, DataFrame indexed by patient_id with columns
+            from ``scar.cohort_hrd_scores`` (loh, tai, lst, hrd_score,
+            hrd_positive, n_segments_input). When provided, the v0.2
+            composite TP53+HRD axis is added; otherwise the cohort
+            keeps only the v0.1 TP53-only score.
+
     Returns a copy of ``cohort`` with new columns:
 
-    * ``max_vaf`` — highest TP53 VAF across all of the patient's variants
-      (``None`` for WT patients).
-    * ``vaf_biallelic`` — boolean, ``True`` if ``max_vaf >= 0.5``.
-    * ``severity_score`` — float in ``[0, 1]``.
-    * ``severity_band`` — ``"low"``, ``"moderate"``, ``"high"``.
+    * ``max_vaf`` / ``vaf_biallelic`` / ``severity_score`` / ``severity_band``
+      — v0.1 TP53-only columns.
+    * ``loh`` / ``tai`` / ``lst`` / ``hrd_score`` / ``hrd_positive`` /
+      ``n_segments_input`` — v0.2 HRD-scar columns (only when ``hrd_scar``
+      is provided; NaN/False for patients with no ASCAT data).
+    * ``composite_severity`` — v0.2 0.5*TP53 + 0.5*HRD_norm composite
+      (only when ``hrd_scar`` is provided; falls back to ``severity_score``
+      when not).
     """
     if "patient_id" not in cohort.columns:
         raise KeyError("cohort missing 'patient_id'")
@@ -128,16 +173,38 @@ def compute_severity(
         patient_variants = tp53[tp53["patient_id"] == pid]
         max_vaf = patient_max_vaf(patient_variants)
         score = severity_score(tier, max_vaf)
-        records.append(
-            {
-                "max_vaf": max_vaf,
-                "vaf_biallelic": bool(
-                    max_vaf is not None and max_vaf >= VAF_BIALLELIC_THRESHOLD
-                ),
-                "severity_score": score,
-                "severity_band": severity_band(score),
-            }
-        )
+        rec: dict[str, Any] = {
+            "max_vaf": max_vaf,
+            "vaf_biallelic": bool(
+                max_vaf is not None and max_vaf >= VAF_BIALLELIC_THRESHOLD
+            ),
+            "severity_score": score,
+            "severity_band": severity_band(score),
+        }
+        # v0.2: layer in HRD-scar if available for this patient
+        if hrd_scar is not None and pid in hrd_scar.index:
+            sr = hrd_scar.loc[pid]
+            rec.update({
+                "loh": int(sr["loh"]),
+                "tai": int(sr["tai"]),
+                "lst": int(sr["lst"]),
+                "hrd_score": int(sr["hrd_score"]),
+                "hrd_positive": bool(sr["hrd_positive"]),
+                "n_segments_input": int(sr["n_segments_input"]),
+                "composite_severity": composite_severity(score, int(sr["hrd_score"])),
+            })
+        elif hrd_scar is not None:
+            # cohort patient but no ASCAT data — composite falls back to TP53-only
+            rec.update({
+                "loh": None,
+                "tai": None,
+                "lst": None,
+                "hrd_score": None,
+                "hrd_positive": False,
+                "n_segments_input": 0,
+                "composite_severity": composite_severity(score, None),
+            })
+        records.append(rec)
 
     extras = pd.DataFrame(records, index=cohort.index)
     return pd.concat([cohort.reset_index(drop=True),

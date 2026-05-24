@@ -142,6 +142,65 @@ def cox_severity(
     }
 
 
+def cox_bivariate(
+    cohort: pd.DataFrame,
+    covariates: list[str],
+    interaction: bool = False,
+) -> dict[str, Any]:
+    """Multi-covariate Cox PH on `covariates`, optionally with an interaction term.
+
+    Args:
+        cohort: must have all covariates + os_days + os_event.
+        covariates: list of column names to include as covariates. For the
+            v0.2 TP53+HRD analysis use ``["severity_score", "hrd_score"]``.
+        interaction: if True and len(covariates)==2, adds a multiplicative
+            interaction term (``covA * covB``) named ``"<a>:<b>"``.
+
+    Returns ``{"model_summary": {covariate: {hr, ci_low, ci_high, p_value}},
+                "concordance": float, "n": int, "n_events": int,
+                "interaction_term": str | None}``.
+
+    Honest scope: this is a multi-parameter Cox; with n<<10/parameter,
+    results are descriptive at best. The pipeline emits this regardless
+    so the comparison vs the univariate baseline is visible, but the
+    README explicitly downgrades the language.
+    """
+    _require_cols(cohort, [*covariates, "os_days", "os_event"])
+    df = cohort[[*covariates, "os_days", "os_event"]].dropna().copy()
+
+    interaction_term: str | None = None
+    if interaction and len(covariates) == 2:
+        a, b = covariates
+        interaction_term = f"{a}:{b}"
+        df[interaction_term] = df[a] * df[b]
+
+    cph = CoxPHFitter()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        cph.fit(df, duration_col="os_days", event_col="os_event")
+
+    out_covs = list(covariates) + ([interaction_term] if interaction_term else [])
+    model_summary = {}
+    for cov in out_covs:
+        if cov not in cph.summary.index:
+            continue
+        s = cph.summary.loc[cov]
+        model_summary[cov] = {
+            "hr": float(s["exp(coef)"]),
+            "ci_low": float(s["exp(coef) lower 95%"]),
+            "ci_high": float(s["exp(coef) upper 95%"]),
+            "p_value": float(s["p"]),
+        }
+
+    return {
+        "model_summary": model_summary,
+        "concordance": float(cph.concordance_index_),
+        "n": int(len(df)),
+        "n_events": int(df["os_event"].sum()),
+        "interaction_term": interaction_term,
+    }
+
+
 def make_km_plot(
     cohort: pd.DataFrame,
     out_path: Path,

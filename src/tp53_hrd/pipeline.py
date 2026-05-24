@@ -183,8 +183,52 @@ def run_pipeline(
             },
         )
 
-        # 4. Severity score per patient
-        scored = compute_severity(cohort, maf)
+        # 4a. (v0.2) HRD genomic-scar score per Telli 2016
+        # Fetch ASCAT allele-specific segments for each cohort patient
+        # from GDC (open tier), compute LOH + TAI + LST per patient.
+        # Graceful skip if scar module / network is unavailable so the
+        # v0.1 TP53-only path still completes.
+        hrd_scar_df = None
+        try:
+            from tp53_hrd import scar, scar_data
+            ascat_dir = out_dir / "ascat_segments"
+            patient_paths = scar_data.fetch_cohort_ascat(
+                list(cohort["patient_id"]), ascat_dir
+            )
+            audit.emit(
+                action="ascat_segments_fetched",
+                job_id=job_id,
+                fields={
+                    "n_patients_with_ascat": len(patient_paths),
+                    "n_patients_in_cohort": int(len(cohort)),
+                },
+            )
+            hrd_scar_df = scar.cohort_hrd_scores(patient_paths)
+            if not hrd_scar_df.empty:
+                metrics["hrd_n_patients_scored"] = float(len(hrd_scar_df))
+                metrics["hrd_n_positive"] = float(hrd_scar_df["hrd_positive"].sum())
+                metrics["hrd_score_mean"] = float(hrd_scar_df["hrd_score"].mean())
+                metrics["hrd_loh_mean"] = float(hrd_scar_df["loh"].mean())
+                metrics["hrd_tai_mean"] = float(hrd_scar_df["tai"].mean())
+                metrics["hrd_lst_mean"] = float(hrd_scar_df["lst"].mean())
+                audit.emit(
+                    action="hrd.scar_scores.computed",
+                    job_id=job_id,
+                    fields={
+                        "n_patients_scored": int(len(hrd_scar_df)),
+                        "n_hrd_positive": int(hrd_scar_df["hrd_positive"].sum()),
+                        "hrd_score_mean": float(hrd_scar_df["hrd_score"].mean()),
+                    },
+                )
+        except Exception as exc:  # noqa: BLE001 — Arm 3 isolation
+            audit.emit(
+                action="hrd_scar_skipped",
+                job_id=job_id,
+                fields={"reason": f"{type(exc).__name__}: {exc}"},
+            )
+
+        # 4b. Severity score per patient (TP53-only + composite TP53+HRD when scar available)
+        scored = compute_severity(cohort, maf, hrd_scar=hrd_scar_df)
         band_counts = scored["severity_band"].value_counts().to_dict()
         for band, count in band_counts.items():
             metrics[f"band_{band}_n"] = float(count)
@@ -195,7 +239,9 @@ def run_pipeline(
         with results_path.open("w", encoding="utf-8") as fh:
             json.dump(records, fh, indent=2, default=str)
 
-        # 6. Survival analysis
+        # 6. Survival analysis — v0.1 univariate TP53 + v0.2 univariate HRD +
+        #    bivariate TP53+HRD + interaction. n=15 is severely underpowered
+        #    for 3-parameter Cox; results are reported as descriptive only.
         km_3band = kaplan_meier_summary(scored).to_dict(orient="records")
         logrank_3band_p = multivariate_logrank_p(scored)
         two_arm = two_arm_summary(scored)
@@ -207,7 +253,7 @@ def run_pipeline(
         metrics["cox_p"] = cox["p_value"]
         metrics["cox_concordance"] = cox["concordance"]
 
-        survival_summary = {
+        survival_summary: dict[str, Any] = {
             "km_3band": km_3band,
             "logrank_3band_p": logrank_3band_p,
             "two_arm_high_vs_not": {
@@ -216,6 +262,37 @@ def run_pipeline(
             },
             "cox_severity_score": cox,
         }
+
+        # v0.2 bivariate Cox if HRD scar data is present
+        if hrd_scar_df is not None and "hrd_score" in scored.columns:
+            try:
+                cox_hrd = cox_severity(scored, covariate="hrd_score")
+                survival_summary["cox_hrd_score"] = cox_hrd
+                metrics["cox_hrd_hr"] = cox_hrd["hr"]
+                metrics["cox_hrd_p"] = cox_hrd["p_value"]
+            except Exception as exc:  # noqa: BLE001
+                survival_summary["cox_hrd_score"] = {"skipped": str(exc)}
+            try:
+                from tp53_hrd.survival import cox_bivariate
+                cox_biv = cox_bivariate(scored, ["severity_score", "hrd_score"])
+                survival_summary["cox_bivariate_tp53_plus_hrd"] = cox_biv
+                cox_int = cox_bivariate(
+                    scored, ["severity_score", "hrd_score"], interaction=True
+                )
+                survival_summary["cox_bivariate_with_interaction"] = cox_int
+            except Exception as exc:  # noqa: BLE001
+                survival_summary["cox_bivariate_skipped"] = str(exc)
+            audit.emit(
+                action="survival.bivariate_cox.computed",
+                job_id=job_id,
+                fields={
+                    "has_univariate_hrd": "cox_hrd_score" in survival_summary
+                                          and "skipped" not in survival_summary["cox_hrd_score"],
+                    "has_bivariate": "cox_bivariate_tp53_plus_hrd" in survival_summary,
+                    "has_interaction": "cox_bivariate_with_interaction" in survival_summary,
+                },
+            )
+
         survival_path = out_dir / "survival_summary.json"
         with survival_path.open("w", encoding="utf-8") as fh:
             json.dump(survival_summary, fh, indent=2, default=str)

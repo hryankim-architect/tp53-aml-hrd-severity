@@ -3,9 +3,27 @@
 > **Capability portrait, not a research result.** Public data is intentionally
 > subsetted to keep the demo small and reproducible on a single workstation.
 
-**What this shows**: TP53-mutation-driven HRD severity scoring for AML, end-to-end
-from open-tier TCGA-LAML mutation calls through to a Cox / Kaplan-Meier
-survival readout on the cohort.
+**What this shows (v0.2)**: TP53-mutation-driven **plus** HRD-genomic-scar
+severity scoring for AML — end-to-end from open-tier TCGA-LAML mutation
+calls + ASCAT2 allele-specific copy-number segments through a per-patient
+composite severity score (TP53 axis × HRD-scar axis) into a Cox /
+Kaplan-Meier survival readout including univariate, bivariate, and
+interaction-term models. The HRD-scar component follows the Telli et al.
+2016 (Clin Cancer Res, PMC6773427) definition:
+
+> **HRD score = LOH + TAI + LST**
+>
+> - LOH = segments with Minor_Copy_Number == 0, length > 15 Mb,
+>   NOT spanning the whole chromosome (Abkevich 2012)
+> - TAI = subchromosomal segments with allelic imbalance extending to
+>   a telomere, not crossing the centromere (Birkbak 2012)
+> - LST = chromosomal transitions between adjacent segments ≥ 10 Mb
+>   long, after smoothing across gaps < 3 Mb (Popova 2012)
+> - HRD-positive call at score ≥ 42 (Telli 2016 TNBC validation;
+>   AML-specific cutoff TBD)
+
+Implemented in pure Python (no R / scarHRD dependency) over the GDC
+TCGA-LAML ASCAT2 open-tier allele-specific segment files.
 
 **Reproducibility**: `make data && make run` produces the demo output in under
 two minutes on a single Mac/Linux box. No GPU, no cloud credentials.
