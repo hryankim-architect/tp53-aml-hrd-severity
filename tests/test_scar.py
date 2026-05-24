@@ -115,14 +115,22 @@ def test_lst_zero_when_states_are_identical():
 # Aggregate HRD score
 # ---------------------------------------------------------------------------
 def test_compute_hrd_score_known_synthetic_example():
-    """Hand-built segment list with known LOH=1, TAI=1, LST=1 -> hrd_score=3."""
+    """Hand-built segment list with known LOH=1, TAI=1, LST=1 -> hrd_score=3.
+
+    Anchored carefully so each segment matches *only* its intended scar
+    category (e.g. the LOH segment is moved away from the p-telomere
+    margin so it does not double-count as a TAI event).
+    """
     segs = _segments([
-        # LOH event on chr1 p-arm (start before centromere): 20 Mb, minor=0
-        _seg("chr1", 1, 20_000_000, major=2, minor=0),
-        # TAI: starts at chr2 telomere (Start <= 3 Mb), 30 Mb,
-        # imbalanced 3:1, does NOT cross centromere (~93 Mb)
+        # LOH only: chr1 p-arm, away from p-telomere (start > 3 Mb margin),
+        # away from centromere, 20 Mb, minor=0
+        _seg("chr1", 4_000_000, 24_000_000, major=2, minor=0),
+        # TAI only: chr2 p-telomere-anchored (start=1), 30 Mb, AI 3:1,
+        # does NOT cross chr2 centromere (~93.9 Mb), minor != 0 so NOT LOH
         _seg("chr2", 1, 30_000_000, major=3, minor=1),
-        # LST: 2 adjacent 20 Mb segments on chr3 with different states
+        # LST: 2 adjacent 20 Mb segments on chr3 with different states,
+        # well inside the chromosome so neither end touches a telomere
+        # and neither segment is LOH (minor >= 1) nor TAI (not telomere-adjacent)
         _seg("chr3", 50_000_000, 70_000_000, major=2, minor=2),
         _seg("chr3", 70_000_001, 90_000_000, major=3, minor=1),
     ])
@@ -135,20 +143,32 @@ def test_compute_hrd_score_known_synthetic_example():
 
 
 def test_compute_hrd_score_threshold_call():
-    # Manually engineer 42 LOH events on different chromosomes to flip
-    # hrd_positive.
+    """Engineer exactly 42 LOH events with NO TAI / LST contamination.
+
+    Each segment is placed away from both telomeres (start > 3 Mb,
+    end < chrom_len - 3 Mb) so it cannot count as TAI. p-arm segments
+    are placed entirely before the centromere for metacentric chroms
+    or span the centromere for acrocentric chroms (chr13-15, 21, 22) —
+    in either case NOT contributing to TAI (TAI requires extending to
+    a telomere). Each pair lives on a different arm so they cannot
+    form an LST transition with each other.
+    """
     rows = []
-    chroms = [f"chr{i}" for i in range(1, 23)]
-    # 2 LOH segments per chromosome (p arm + q arm) on first 21 chromosomes
-    for c in chroms[:21]:
-        # p-arm LOH ~20 Mb
-        rows.append(_seg(c, 1_000_000, 21_000_000, major=2, minor=0))
-        # q-arm LOH ~20 Mb (well away from centromere)
+    chroms = [f"chr{i}" for i in range(1, 22)]  # 21 autosomes (chr22 has very short q-arm)
+    for c in chroms:
         cen = scar.CENTROMERE_MID_HG38[c]
-        rows.append(_seg(c, cen + 5_000_000, cen + 25_000_000, major=2, minor=0))
+        chrom_len = scar.CHROM_SIZES_HG38[c]
+        # p-arm LOH ~20 Mb, away from p-telomere (start >> 3 Mb margin)
+        rows.append(_seg(c, 4_000_000, 24_000_000, major=2, minor=0))
+        # q-arm LOH ~20 Mb, away from centromere AND away from q-telomere
+        q_start = cen + 5_000_000
+        q_end = min(q_start + 20_000_000, chrom_len - 5_000_000)
+        rows.append(_seg(c, q_start, q_end, major=2, minor=0))
     segs = _segments(rows)
     result = scar.compute_hrd_score(segs, "TEST-HRD-POS")
     assert result.loh == 42
+    assert result.tai == 0, f"unexpected TAI contamination: {result.tai}"
+    assert result.lst == 0, f"unexpected LST contamination: {result.lst}"
     assert result.hrd_score == 42
     assert result.hrd_positive is True  # exactly at threshold
 
