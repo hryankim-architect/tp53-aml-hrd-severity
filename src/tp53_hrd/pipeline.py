@@ -293,6 +293,72 @@ def run_pipeline(
                 },
             )
 
+            # ---- v0.3: formal nested-model comparison (LRT + AIC + C-index)
+            try:
+                from tp53_hrd.model_compare import run_nested_model_suite
+                cox_dropna = scored[
+                    ["severity_score", "hrd_score", "os_days", "os_event"]
+                ].dropna()
+                model_comp = run_nested_model_suite(cox_dropna)
+                survival_summary["model_comparison_lrt_aic_cindex"] = model_comp
+                # Surface key comparison numbers as top-level metrics
+                m2m1 = model_comp["m2_vs_m1"]
+                m3m2 = model_comp["m3_vs_m2"]
+                metrics["m2_vs_m1_lrt_p"] = float(m2m1["lrt_p"])
+                metrics["m2_vs_m1_aic_delta"] = float(m2m1["aic_delta"])
+                metrics["m3_vs_m2_lrt_p"] = float(m3m2["lrt_p"])
+                metrics["m3_vs_m2_aic_delta"] = float(m3m2["aic_delta"])
+                audit.emit(
+                    action="survival.nested_model_comparison",
+                    job_id=job_id,
+                    fields={
+                        "m2_vs_m1_justified": m2m1["justifies_complex"],
+                        "m3_vs_m2_justified": m3m2["justifies_complex"],
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001
+                survival_summary["model_comparison_skipped"] = str(exc)
+
+            # ---- v0.3: causal mediation analysis (TP53 -> HRD -> survival)
+            try:
+                from tp53_hrd.mediation import mediation_to_dict, run_mediation
+                med = run_mediation(scored, n_bootstrap=1000, seed=42)
+                survival_summary["mediation_tp53_via_hrd"] = mediation_to_dict(med)
+                metrics["mediation_indirect_log_hr"] = float(med.indirect_log_hr)
+                if med.proportion_mediated is not None:
+                    metrics["mediation_proportion_mediated"] = float(med.proportion_mediated)
+                audit.emit(
+                    action="survival.mediation.computed",
+                    job_id=job_id,
+                    fields={
+                        "indirect_log_hr": float(med.indirect_log_hr),
+                        "proportion_mediated": med.proportion_mediated,
+                        "ci_low": med.indirect_ci_low,
+                        "ci_high": med.indirect_ci_high,
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001
+                survival_summary["mediation_skipped"] = str(exc)
+
+        # ---- v0.3: clonal hierarchy approximation from MAF VAF ranking
+        try:
+            from tp53_hrd.clonal import cohort_clonal_calls, cohort_clonal_summary
+            calls_df = cohort_clonal_calls(cohort, maf)
+            clonal_summary = cohort_clonal_summary(calls_df)
+            (out_dir / "clonal_calls.tsv").write_text(
+                calls_df.to_csv(sep="\t", index=True)
+            )
+            survival_summary["clonal_hierarchy_summary"] = clonal_summary
+            if clonal_summary.get("founder_rate_among_tp53_mut") is not None:
+                metrics["clonal_founder_rate"] = float(clonal_summary["founder_rate_among_tp53_mut"])
+            audit.emit(
+                action="clonal.hierarchy.computed",
+                job_id=job_id,
+                fields=clonal_summary,
+            )
+        except Exception as exc:  # noqa: BLE001
+            survival_summary["clonal_skipped"] = str(exc)
+
         survival_path = out_dir / "survival_summary.json"
         with survival_path.open("w", encoding="utf-8") as fh:
             json.dump(survival_summary, fh, indent=2, default=str)

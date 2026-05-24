@@ -25,6 +25,26 @@ interaction-term models. The HRD-scar component follows the Telli et al.
 Implemented in pure Python (no R / scarHRD dependency) over the GDC
 TCGA-LAML ASCAT2 open-tier allele-specific segment files.
 
+**v0.3 adds three interpretive analyses** on top of v0.2's Cox table,
+so the README's bivariate / interaction results are now framed by
+formal model selection + a mechanism-decomposition test:
+
+- **Nested-model comparison** (`src/tp53_hrd/model_compare.py`) —
+  LRT + AIC delta + C-index delta for the three pairwise comparisons
+  among M1 (univariate TP53), M2 (bivariate), M3 (with interaction).
+  Per-run boolean `justifies_complex` for each pair.
+- **Causal mediation analysis** (`src/tp53_hrd/mediation.py`) —
+  Baron-Kenny 1986 path decomposition with 1000-bootstrap CI on the
+  indirect effect; reports `proportion_mediated` directly.
+- **Clonal hierarchy approximation** (`src/tp53_hrd/clonal.py`) —
+  VAF-rank-based "founder vs subclonal" call per TP53-mutant
+  patient; cohort-level `founder_rate_among_tp53_mut` summary.
+
+These three together let the README's TP53→HRD upstream-downstream
+narrative be reported as *converging-evidence triangulation* rather
+than hand-waving from a single Cox table. Honest scope: at n=15 each
+analysis is descriptive, not confirmatory; see `docs/release-notes/v0.3.md`.
+
 **Reproducibility**: `make data && make run` produces the demo output in under
 two minutes on a single Mac/Linux box. No GPU, no cloud credentials.
 
