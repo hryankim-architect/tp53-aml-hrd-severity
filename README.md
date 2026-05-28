@@ -1,5 +1,7 @@
 # `tp53-aml-hrd-severity`
 
+![ci](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/ci.yml/badge.svg) ![english-only](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/english-only.yml/badge.svg)
+
 > **Capability portrait, not a research result.** Public data is intentionally
 > subsetted to keep the demo small and reproducible on a single workstation.
 
