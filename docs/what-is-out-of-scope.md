@@ -1,7 +1,7 @@
-# What is out of scope (P3 — `tp53-aml-hrd-severity`)
+# What is out of scope (P3, `tp53-aml-hrd-severity`)
 
 This file is the anti-scope-creep ledger for the P3 capability portrait.
-The repo's value comes from being *small and complete* — every item below
+The repo's value comes from being *small and complete*, every item below
 is something a reviewer might reasonably ask for that the v0.1 demo
 deliberately does not attempt.
 
@@ -16,7 +16,7 @@ this file in the same PR. If not, the PR doesn't land.
 n=15 (7 TP53-mutant + 8 WT) is below standard clinical-study power. The
 Cox HR (8.39, 95% CI 1.33–52.94, p=0.024) and the 3-band log-rank p
 (0.031) are *demonstrative*, not conclusive. The wide confidence intervals
-reflect this — they are the right output for the input sample size, not
+reflect this, they are the right output for the input sample size, not
 an artifact to be hidden.
 
 **Why out of scope**: Inflating the cohort would require either the
@@ -59,7 +59,7 @@ on BeatAML, and report a pooled HR with random-effects meta-analysis.
 
 **Why out of scope**: Meta-analysis multiplies the cohort handling, the
 statistical assumptions, and the "did you really beat existing scores?"
-defense surface — all of which belong to a paper, not a capability
+defense surface, all of which belong to a paper, not a capability
 portrait.
 
 ---
@@ -74,7 +74,7 @@ in Python over the GDC ASCAT2 open-tier segment files (see `src/tp53_hrd/scar.py
 so the R dependency is no longer needed for the demo. A side-by-side
 agreement check between this Python implementation and the R scarHRD
 output on a shared reference cohort (e.g. TCGA-OVCA, where scarHRD has
-published reference scores) is a defensible v0.3 add — but it requires
+published reference scores) is a defensible v0.3 add, but it requires
 R + Bioconductor install, breaking the "uv sync, single Python venv"
 reproducibility promise. Deferred until a reviewer asks for it.
 
@@ -89,7 +89,7 @@ not been formally validated in AML.
 **Why out of scope**: per-cohort threshold calibration needs a labelled
 ground-truth set (e.g. functional HRD assay, RAD51 foci, BRCA1/2 methylation
 status) that is not available in TCGA-LAML open tier. The README states
-the threshold inheritance honestly and reports per-cohort distribution
+the threshold inheritance candidly and reports per-cohort distribution
 statistics so a reader can see where this cohort actually falls.
 
 ---

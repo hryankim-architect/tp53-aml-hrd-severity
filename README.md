@@ -6,7 +6,7 @@
 > subsetted to keep the demo small and reproducible on a single workstation.
 
 **What this shows (v0.2)**: TP53-mutation-driven **plus** HRD-genomic-scar
-severity scoring for AML — end-to-end from open-tier TCGA-LAML mutation
+severity scoring for AML, end-to-end from open-tier TCGA-LAML mutation
 calls + ASCAT2 allele-specific copy-number segments through a per-patient
 composite severity score (TP53 axis × HRD-scar axis) into a Cox /
 Kaplan-Meier survival readout including univariate, bivariate, and
@@ -31,20 +31,20 @@ TCGA-LAML ASCAT2 open-tier allele-specific segment files.
 so the README's bivariate / interaction results are now framed by
 formal model selection + a mechanism-decomposition test:
 
-- **Nested-model comparison** (`src/tp53_hrd/model_compare.py`) —
+- **Nested-model comparison** (`src/tp53_hrd/model_compare.py`),
   LRT + AIC delta + C-index delta for the three pairwise comparisons
   among M1 (univariate TP53), M2 (bivariate), M3 (with interaction).
   Per-run boolean `justifies_complex` for each pair.
-- **Causal mediation analysis** (`src/tp53_hrd/mediation.py`) —
+- **Causal mediation analysis** (`src/tp53_hrd/mediation.py`),
   Baron-Kenny 1986 path decomposition with 1000-bootstrap CI on the
   indirect effect; reports `proportion_mediated` directly.
-- **Clonal hierarchy approximation** (`src/tp53_hrd/clonal.py`) —
+- **Clonal hierarchy approximation** (`src/tp53_hrd/clonal.py`),
   VAF-rank-based "founder vs subclonal" call per TP53-mutant
   patient; cohort-level `founder_rate_among_tp53_mut` summary.
 
 These three together let the README's TP53→HRD upstream-downstream
 narrative be reported as *converging-evidence triangulation* rather
-than hand-waving from a single Cox table. Honest scope: at n=15 each
+than hand-waving from a single Cox table. Scope: at n=15 each
 analysis is descriptive, not confirmatory; see `docs/release-notes/v0.3.md`.
 
 **Reproducibility**: `make data && make run` produces the demo output in under
@@ -67,7 +67,7 @@ power. See [`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md).
 
 Acute myeloid leukemia patients with TP53 mutations have notoriously short
 overall survival, and a subset behaves like a homologous-recombination-deficient
-(HRD) phenotype — even though AML is not the disease that defined the HRD
+(HRD) phenotype, even though AML is not the disease that defined the HRD
 concept. The hypothesis this method codifies:
 
 > A composite of TP53 variant *tier* (canonical hotspot vs non-hotspot missense
@@ -176,8 +176,8 @@ even at n=15. The Cox HR direction confirms the score is monotonic with
 hazard: a unit increase in `severity_score` (0 → 1) corresponds to an 8.4×
 hazard increase.
 
-These numbers are **demonstrative**, not publication-grade — n=15 is below
-the cohort size most clinical studies use — but they show the method
+These numbers are **demonstrative**, not publication-grade, n=15 is below
+the cohort size most clinical studies use, but they show the method
 *works on the subset of TCGA-LAML that can be fully shared in a public repo*.
 
 ---
@@ -215,7 +215,7 @@ The full 15-record JSON is the canonical input for any downstream comparison
 
 ---
 
-## Sample selection — honest scope
+## Sample selection, scope
 
 The plan started at n=30 (17 TP53-mutant + 13 WT). Two open-tier ceilings
 shrank the eligible cohort:
@@ -268,7 +268,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 │   ├── ci.yml                      # ruff + pytest + scope-preamble lint
 │   └── english-only.yml            # CJK character scanner
 ├── data/
-│   ├── manifest.yaml               # (unused for P3 — data is fetched dynamically)
+│   ├── manifest.yaml               # (unused for P3, data is fetched dynamically)
 │   └── tcga-laml/                  # populated by `make data`, git-ignored
 ├── src/tp53_hrd/
 │   ├── audit.py                    # NDJSON hash-chained ledger emit

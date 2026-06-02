@@ -68,11 +68,11 @@ works against any of them.
 
 Three reasons, in order:
 
-1. **Experiment tracking** — parameters and metrics are version-controlled
+1. **Experiment tracking**, parameters and metrics are version-controlled
    alongside the run, so the demo's output is reproducible.
-2. **Substrate consistency** — every repo in the quartet posts to the same
+2. **Substrate consistency**, every repo in the quartet posts to the same
    MLflow server, so a reviewer can compare runs across projects.
-3. **No-op when absent** — the wrapper means the demo works without an MLflow
+3. **No-op when absent**, the wrapper means the demo works without an MLflow
    server, so a recruiter cloning the repo on a laptop still sees `make run`
    succeed.
 
@@ -97,7 +97,7 @@ projects themselves needing custom alerting.
 - No process supervisor.
 - No container per pipeline (the scaffold runs in a single Python process).
 - No data validation framework beyond Pydantic-on-demand.
-- No DAG engine (Nextflow, Airflow, etc.) — those belong inside the body
+- No DAG engine (Nextflow, Airflow, etc.), those belong inside the body
   when a project needs them (P1 specifically), not in the scaffold.
 
 The point is that the scaffold is the *contract*, not the implementation.
