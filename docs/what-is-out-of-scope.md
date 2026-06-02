@@ -94,6 +94,19 @@ statistics so a reader can see where this cohort actually falls.
 
 ---
 
+## Classifier-style probability calibration (ECE / temperature scaling)
+
+**Why out of scope**: the headline model here is survival (Cox proportional
+hazards) plus a composite severity score — not a probabilistic classifier — so
+the classifier-style ECE / temperature-scaling diagnostic used in the
+`dmoi-brca-poc` flagship and the `multiqc-foundation-gate` gate does not apply.
+The appropriate analogue is *survival* calibration (e.g. D-calibration or
+calibration-in-the-large of predicted vs observed event rates), which needs a
+held-out follow-up cohort and is deferred. Hazard ratios (TP53 axis HR 8.39) are
+reported with confidence intervals as the model's honest uncertainty.
+
+---
+
 ## Allele-specific copy-number validation against ASCAT3 / FACETS
 
 ASCAT2 and ASCAT3 sometimes call the same chromosome differently;
