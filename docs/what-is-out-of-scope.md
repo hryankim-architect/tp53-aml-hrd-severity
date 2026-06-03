@@ -1,7 +1,7 @@
 # What is out of scope (P3, `tp53-aml-hrd-severity`)
 
-This file is the anti-scope-creep ledger for the P3 capability portrait.
-The repo's value comes from being *small and complete*, every item below
+This file tracks scope boundaries for P3 (`tp53-aml-hrd-severity`).
+The repo's value comes from being *small and complete*. Every item below
 is something a reviewer might reasonably ask for that the v0.1 demo
 deliberately does not attempt.
 
@@ -22,7 +22,7 @@ an artifact to be hidden.
 **Why out of scope**: Inflating the cohort would require either the
 controlled-access tier (dbGaP credentials) or pooling external cohorts.
 Either move expands the repo's data plane beyond the open subset, which
-breaks the "small and reproducible on a single workstation" contract.
+breaks the "small and self-contained on a laptop" contract.
 
 ---
 
@@ -34,8 +34,8 @@ patients (vs the 8 in the open tier) and richer clinical fields
 "open-tier ceiling" gap described in the README.
 
 **Why out of scope**: Controlled-access requires a dbGaP DAR application,
-PI sign-off, and a private data plane. The capability portrait's purpose
-is to be runnable by anyone who clones the repo.
+PI sign-off, and a private data plane. This repo needs to run off a public
+clone with no credentials.
 
 ---
 
@@ -153,7 +153,7 @@ no multi-tenant isolation, no input streaming, no retry/backoff, no
 distributed orchestration.
 
 **Why out of scope**: The substrate (`audit.py`, `tracking.py`) provides
-the building blocks; the capability portrait does not re-implement them.
+the building blocks; re-implementing them here would duplicate work that belongs upstream.
 Production hardening belongs to the orchestration project (P1
 `healthomics-lab-orchestrator`), not the analytical method demo.
 

@@ -26,7 +26,7 @@ Honest scope (v0.3):
     * Single-cell DNA-seq or scRNA-seq
     * Longitudinal samples (diagnosis vs relapse)
 
-    All three are out of scope for an open-tier capability portrait.
+    All three are out of scope for this open-tier proof of concept.
     The v0.3 output is labelled *"VAF-rank consistency"* in the README
     rather than "founder/subclone call" to keep the proxy nature
     visible to the reader.

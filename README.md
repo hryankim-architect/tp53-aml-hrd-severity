@@ -2,8 +2,7 @@
 
 ![ci](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/ci.yml/badge.svg) ![english-only](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/english-only.yml/badge.svg)
 
-> **Capability portrait, not a research result.** Public data is intentionally
-> subsetted to keep the demo small and reproducible on a single workstation.
+*This repo uses the open-tier TCGA-LAML subset (n=15, 7 TP53-mutant + 8 WT controls); it demonstrates the method end-to-end, not production-scale statistical power.*
 
 **What this shows (v0.2)**: TP53-mutation-driven **plus** HRD-genomic-scar
 severity scoring for AML, end-to-end from open-tier TCGA-LAML mutation
@@ -54,12 +53,11 @@ two minutes on a single Mac/Linux box. No GPU, no cloud credentials.
 and exposes a canary smoke test that the Polish-Phase5
 `lab_semantic_check.py` probe can call.
 
-**Production framing**: A version of this method ran at full cohort scale on
-TCGA + BeatAML + internal cohorts during my time directing clinical
-bioinformatics at Gilead, calibrated against scarHRD signatures. The lab
-version here proves the *method* and the *engineering* on the subset of
-TCGA-LAML that is fully share-able, not the result at production statistical
-power. See [`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md).
+**Prior work**: A version of this method ran at full cohort scale on TCGA +
+BeatAML + internal cohorts during my time directing clinical bioinformatics at
+Gilead, calibrated against scarHRD signatures. This repo covers the open-shareable
+TCGA-LAML slice only; the numbers reflect that subset, not the full production
+run. See [`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md).
 
 ---
 
@@ -288,7 +286,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 │   └── test_*.py
 ├── docs/
 │   ├── architecture.md             # substrate integration diagram
-│   └── what-is-out-of-scope.md     # anti-scope-creep ledger
+│   └── what-is-out-of-scope.md     # scope boundary ledger
 └── scripts/
     ├── run_lab.sh                  # one-liner for Polish-Phase5 lab nodes
     └── check_english_only.py       # CJK scanner used by CI
@@ -302,7 +300,7 @@ See [`docs/what-is-out-of-scope.md`](docs/what-is-out-of-scope.md) for the
 full ledger. Short version: no production-scale claims, no copy-number-based
 LOH verification, no scarHRD R-package integration, no multi-cohort
 meta-analysis, no therapy-response prediction. Those belong to the
-production version of this method, not the capability portrait.
+production version of this method, not this demo.
 
 ---
 

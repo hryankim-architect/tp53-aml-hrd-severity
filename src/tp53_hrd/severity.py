@@ -107,7 +107,7 @@ def severity_band(score: float) -> str:
 # Composite weighting (v0.2): 50% TP53, 50% HRD-scar. The choice is
 # deliberately equal because (a) AML-specific weight learning would
 # need n much greater than 15, and (b) equal-weight is the most
-# transparent default for a capability portrait.
+# transparent default for a v0.1 proof-of-concept scope.
 
 HRD_NORM_ANCHOR: int = 42  # Telli 2016 HRD-positive threshold
 TP53_WEIGHT: float = 0.5

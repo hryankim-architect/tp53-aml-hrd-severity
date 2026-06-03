@@ -1,7 +1,7 @@
 """End-to-end TP53-HRD severity pipeline for TCGA-LAML.
 
 The shape mirrors the scaffold template so the audit / tracking / canary
-substrate hooks fire in the same shape across every capability-portrait
+substrate hooks fire in the same shape across every
 repo::
 
     audit_start  →  tracking_start  →  body  →  tracking_end  →  audit_end
@@ -409,7 +409,7 @@ def run_pipeline(
 
 @click.group()
 def cli() -> None:
-    """tp53_hrd capability-portrait pipeline."""
+    """tp53_hrd demonstration pipeline."""
 
 
 @cli.command()
