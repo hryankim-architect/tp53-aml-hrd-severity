@@ -1,6 +1,6 @@
 # `tp53-aml-hrd-severity`
 
-![ci](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/ci.yml/badge.svg) ![english-only](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/english-only.yml/badge.svg)
+![ci](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/ci.yml/badge.svg)
 
 *This repo uses the open-tier TCGA-LAML subset (n=15, 7 TP53-mutant + 8 WT controls); it demonstrates the method end-to-end, not production-scale statistical power.*
 
@@ -263,8 +263,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 ├── Makefile                        # install | data | run | test | report | clean
 ├── pyproject.toml                  # uv-managed; pinned versions
 ├── .github/workflows/
-│   ├── ci.yml                      # ruff + pytest + canary + English-only/CJK scan
-│   └── english-only.yml            # CJK character scanner
+│   └── ci.yml                      # ruff + pytest + canary
 ├── data/
 │   ├── manifest.yaml               # (unused for P3, data is fetched dynamically)
 │   └── tcga-laml/                  # populated by `make data`, git-ignored
@@ -289,7 +288,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 │   └── what-is-out-of-scope.md     # scope boundary ledger
 └── scripts/
     ├── run_lab.sh                  # one-liner for Polish-Phase5 lab nodes
-    └── check_english_only.py       # CJK scanner used by CI
+    └── check_english_only.py       # CJK scanner run by the pre-commit hook
 ```
 
 ---
