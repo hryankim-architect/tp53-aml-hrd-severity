@@ -23,7 +23,7 @@ ledger at `audit/local-demo.ndjson` is the persistent record of every run.
 
 ## Substrate integration
 
-Three loosely-coupled channels connect this repo to the Polish-Phase5 substrate:
+Three loosely-coupled channels connect this repo to the substrate:
 
 | Channel | Module | Env var | Substrate endpoint |
 |---|---|---|---|
@@ -42,7 +42,7 @@ modification to a past entry invalidates the hash of every entry that follows.
 The `audit.verify()` function walks the chain and returns `(ok, n_entries,
 first_bad_ts)`.
 
-On the Polish-Phase5 substrate this verification runs at roughly 6.19 µs per
+On the substrate this verification runs at roughly 6.19 µs per
 entry up to 10 k entries, with full-chain tamper detection at about 6 ms. This
 repo's audit volume is far smaller; it uses the same format so the substrate's
 `gatk_audit.py` verifier works against it without modification.
@@ -66,7 +66,7 @@ JSON fixture, runs the core scoring path, and exits 0 if output matches
 the expected values. Requirements: deterministic input, completes in under
 30 seconds, no external services.
 
-The Polish-Phase5 `lab_semantic_check.py` probe calls this daily. A green
+The `lab_semantic_check.py` probe calls this daily. A green
 canary signals that the substrate-level monitoring can detect regressions
 in this repo without custom alerting code here.
 

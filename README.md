@@ -50,8 +50,7 @@ analysis is descriptive, not confirmatory; see `docs/release-notes/v0.3.md`.
 two minutes on a single Mac/Linux box. No GPU, no cloud credentials.
 
 **Substrate**: emits audit (NDJSON hash-chained ledger), tracks MLflow runs,
-and exposes a canary smoke test that the Polish-Phase5
-`lab_semantic_check.py` probe can call.
+and exposes a canary smoke test that the `lab_semantic_check.py` probe can call.
 
 **Prior work**: A version of this method ran at full cohort scale on TCGA +
 BeatAML + internal cohorts during my time directing clinical bioinformatics at
@@ -241,7 +240,7 @@ just doesn't pretend the n is bigger than it is.
 ## Substrate environment variables
 
 The substrate hooks read these at runtime; the defaults are no-ops, so the
-demo runs cleanly without the Polish-Phase5 substrate present:
+demo runs cleanly without the substrate present:
 
 | Var | Default | What it does |
 |---|---|---|
@@ -249,7 +248,7 @@ demo runs cleanly without the Polish-Phase5 substrate present:
 | `MLFLOW_TRACKING_URI` | unset | If set, MLflow runs are tracked at this URI. |
 | `TP53_HRD_CANARY_FIXTURE` | `tests/fixtures/canary.json` | Path used by `canary.py` for the deterministic smoke test. |
 
-On a Polish-Phase5 lab node, `scripts/run_lab.sh` exports these to the lab
+On a lab node, `scripts/run_lab.sh` exports these to the lab
 defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 
 ---
@@ -287,7 +286,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 │   ├── architecture.md             # substrate integration diagram
 │   └── what-is-out-of-scope.md     # scope boundary ledger
 └── scripts/
-    ├── run_lab.sh                  # one-liner for Polish-Phase5 lab nodes
+    ├── run_lab.sh                  # one-liner for lab nodes
     └── check_english_only.py       # CJK scanner run by the pre-commit hook
 ```
 
