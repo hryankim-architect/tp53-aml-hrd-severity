@@ -76,7 +76,7 @@ in this repo without custom alerting code here.
 - No async runtime.
 - No process supervisor.
 - No container per pipeline stage (everything runs in a single Python process).
-- No data-validation framework beyond Pydantic on demand.
+- No schema-validation layer; Pydantic is used only where a check is cheap.
 - No DAG engine; if a future version needs one, it belongs inside the body
   of the pipeline, not in the scaffold shared with other repos.
 
