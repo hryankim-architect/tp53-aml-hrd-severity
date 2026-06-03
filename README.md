@@ -263,7 +263,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 ├── Makefile                        # install | data | run | test | report | clean
 ├── pyproject.toml                  # uv-managed; pinned versions
 ├── .github/workflows/
-│   ├── ci.yml                      # ruff + pytest + scope-preamble lint
+│   ├── ci.yml                      # ruff + pytest + canary + English-only/CJK scan
 │   └── english-only.yml            # CJK character scanner
 ├── data/
 │   ├── manifest.yaml               # (unused for P3, data is fetched dynamically)
@@ -308,8 +308,7 @@ production version of this method, not this demo.
 
 This repo was created from
 [`bioinformatics-repo-scaffold-template`](https://github.com/hryankim-architect/bioinformatics-repo-scaffold-template),
-the shared scaffold that every capability-portrait repo in the quartet
-(P1 / P2 / P3 / P4) inherits.
+the shared scaffold that other repos in this portfolio also inherit.
 
 ---
 

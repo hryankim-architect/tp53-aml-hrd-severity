@@ -1,13 +1,13 @@
 # What is out of scope (P3, `tp53-aml-hrd-severity`)
 
 This file tracks scope boundaries for P3 (`tp53-aml-hrd-severity`).
-The repo's value comes from being *small and complete*. Every item below
-is something a reviewer might reasonably ask for that the v0.1 demo
-deliberately does not attempt.
+This stays a compact demo on purpose. Every item below is something a
+reviewer might reasonably ask for that the v0.1 demo deliberately does not
+attempt.
 
-If a future PR proposes any of these, the contributor must answer one
-question: **why is this still out of scope?** If the answer is good, edit
-this file in the same PR. If not, the PR doesn't land.
+Each entry stays out until someone argues otherwise in a PR. If the argument
+is sound, fold the change into this file in the same PR; if not, it doesn't
+land.
 
 ---
 
@@ -148,9 +148,9 @@ open clinical record at the granularity required.
 
 ## Production hardening
 
-The pipeline runs in a single Python process. There is no HA, no RBAC,
-no multi-tenant isolation, no input streaming, no retry/backoff, no
-distributed orchestration.
+Scoring runs in one Python process. There is no high availability, no
+access control, no multi-tenant isolation, no input streaming, no
+retry/backoff, no distributed orchestration.
 
 **Why out of scope**: The substrate (`audit.py`, `tracking.py`) provides
 the building blocks; re-implementing them here would duplicate work that belongs upstream.
@@ -161,11 +161,10 @@ Production hardening belongs to the orchestration project (P1
 
 ## Adding an item
 
-Open a PR that:
+Open a PR that edits this file. The PR must include:
 
-1. Adds the item to the appropriate section above (or creates a new
-   section if none fits).
-2. Adds a one-sentence reason in italics for why it remains out of scope.
-3. Links to the upstream feature request or issue if there is one.
+1. The new item placed in the relevant section, or a new section if none fits.
+2. A short reason (one sentence, italicised) for why it stays out of scope.
+3. A link to the upstream issue or feature request if one exists.
 
-That's it. The friction is intentional.
+The bar is not high, but it must be cleared before the change lands.
