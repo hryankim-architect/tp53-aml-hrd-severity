@@ -16,7 +16,7 @@ the patient's other somatic mutations in the open-tier MAF:
     "subclonal_consistent" — TP53 max-VAF is below the cohort median
     "ambiguous"            — neither extreme
 
-Honest scope (v0.3):
+Caveats (v0.3):
 
     Open-tier MAF VAF is a *proxy* for clonal architecture, not a
     measurement of it. Proper clonal-evolution analysis needs either:

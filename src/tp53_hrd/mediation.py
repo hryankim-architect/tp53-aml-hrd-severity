@@ -17,7 +17,7 @@ We also estimate a non-parametric bootstrap distribution of the indirect
 effect to construct a CI (Sobel's normality assumption is unreliable on
 small samples; bootstrap is the modern standard — VanderWeele 2015).
 
-Honest scope (v0.3):
+Caveats (v0.3):
 
     With n=15, a single mediation estimate is descriptive at best. The
     bootstrap CI on the indirect effect will be very wide; the README
