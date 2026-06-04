@@ -25,7 +25,7 @@ The README climax surfaces the three pairwise comparisons (M2-vs-M1,
 M3-vs-M2, M3-vs-M1) per run so a reader can see exactly why we did or
 did not keep the more complex model.
 
-Caveats (v0.3): with n=15, LRT chi-square approximation is itself
+Limitations (v0.3): with n=15, LRT chi-square approximation is itself
 suspect. The decision rule output is reported as a *descriptive* signal
 (consistent with / not consistent with the simpler model), not as a
 confirmatory hypothesis test.

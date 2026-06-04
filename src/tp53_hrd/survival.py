@@ -160,7 +160,7 @@ def cox_bivariate(
                 "concordance": float, "n": int, "n_events": int,
                 "interaction_term": str | None}``.
 
-    Caveats: this is a multi-parameter Cox; with n<<10/parameter,
+    Limitations: this is a multi-parameter Cox; with n<<10/parameter,
     results are descriptive at best. The pipeline emits this regardless
     so the comparison vs the univariate baseline is visible, but the
     README explicitly downgrades the language.
