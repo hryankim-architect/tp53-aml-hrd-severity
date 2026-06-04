@@ -2,6 +2,10 @@
 
 ![ci](https://github.com/hryankim-architect/tp53-aml-hrd-severity/actions/workflows/ci.yml/badge.svg)
 
+> **One principle, applied here.** Pick the smallest, most interpretable representation that could carry the signal; measure it against an honest baseline; report the verdict faithfully — whether the compact choice wins, ties, or loses. *That last step is why AI safety is needed: knowing a capability is real rather than a flattering benchmark.*
+>
+> In this repo: **representation** a bounded composite (tier+VAF, HRD-norm), nothing learned → **baseline** a many-parameter / learned Cox → **verdict** *by design* there is nothing to over-fit at n=15; the Cox HR 8.39 (p=0.024) is emitted but labeled descriptive.
+
 *This repo uses the open-tier TCGA-LAML subset (n=15, 7 TP53-mutant + 8 WT controls); it demonstrates the method end-to-end, not production-scale statistical power.*
 
 **What this shows (v0.2)**: TP53-mutation-driven **plus** HRD-genomic-scar
