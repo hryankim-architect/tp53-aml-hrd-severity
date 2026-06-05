@@ -132,7 +132,7 @@ make data                     # populates data/tcga-laml/
 # 3. Run the end-to-end pipeline
 make run                      # writes 3 files to artifacts/, < 2 seconds
 
-# 4. Run the test suite (~90 tests, includes fixture-based integration)
+# 4. Run the test suite (~120 tests, includes fixture-based integration)
 make test
 
 # 5. Run the canary smoke test (used by lab_semantic_check.py)
@@ -281,7 +281,7 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 │   ├── severity.py                 # composite tier + VAF score
 │   ├── survival.py                 # KM + Cox + log-rank + plot
 │   └── pipeline.py                 # end-to-end CLI entry
-├── tests/                          # 87 tests across all modules
+├── tests/                          # ~120 tests across all modules
 │   ├── fixtures/
 │   │   ├── canary.json
 │   │   └── cohort-15.tsv           # committed cohort manifest (seed=42)
