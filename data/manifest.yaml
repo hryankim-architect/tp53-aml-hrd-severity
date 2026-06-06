@@ -17,6 +17,11 @@
 #       license:   <SPDX or text>             # required
 #       source:    <one-line provenance>      # required
 
+# NOTE (tp53-aml-hrd-severity): this repo does NOT consume this manifest at runtime.
+# TCGA-LAML MAFs + clinical are fetched from the NIH GDC open tier by the pipeline
+# (load_combined_maf / load_or_fetch_clinical during `make run`). The entry below is
+# the inherited scaffold placeholder, kept only so `make data` has a target; see the
+# commented GDC example further down for the real provenance.
 inputs:
   - url: https://example.org/tiny-fixture.tsv
     path: fixtures/tiny.tsv

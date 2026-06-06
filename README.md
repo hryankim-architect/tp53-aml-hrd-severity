@@ -126,8 +126,10 @@ so the demo runs cleanly on a fresh checkout.
 # 1. Install pinned dependencies
 make install                  # or: uv sync --extra dev
 
-# 2. Fetch TCGA-LAML aliquot MAFs (153 files, ~1.5 MB tarball) and clinical
-make data                     # populates data/tcga-laml/
+# 2. (optional) TCGA-LAML MAFs + clinical are fetched at runtime from the NIH GDC
+#    open tier during 'make run'; data/manifest.yaml is the inherited scaffold
+#    placeholder, not this repo's data path.
+make data                     # optional / placeholder — real GDC fetch happens in make run
 
 # 3. Run the end-to-end pipeline
 make run                      # writes 3 files to artifacts/, < 2 seconds
