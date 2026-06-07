@@ -126,13 +126,16 @@ so the demo runs cleanly on a fresh checkout.
 # 1. Install pinned dependencies
 make install                  # or: uv sync --extra dev
 
-# 2. (optional) TCGA-LAML MAFs + clinical are fetched at runtime from the NIH GDC
-#    open tier during 'make run'; data/manifest.yaml is the inherited scaffold
-#    placeholder, not this repo's data path.
-make data                     # optional / placeholder — real GDC fetch happens in make run
+# 2. Fetch + checksum-verify public inputs (NIH GDC open tier, no credentials):
+#    153 TCGA-LAML per-aliquot masked MAFs + the clinical survival query.
+#    data/manifest.yaml pins every file's sha256, so this is byte-reproducible.
+make data                     # ~1.6 MB total; re-runs are a no-op (hash-verified cache)
 
 # 3. Run the end-to-end pipeline
 make run                      # writes 3 files to artifacts/, < 2 seconds
+#    Note: the Arm-3 HRD-scar score additionally fetches per-cohort ASCAT copy-
+#    number segments from GDC at run time (cohort is seed-derived). It is cached
+#    and gracefully skipped if offline, so the TP53 path still completes.
 
 # 4. Run the test suite (~120 tests, includes fixture-based integration)
 make test
@@ -270,19 +273,20 @@ defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
 ├── .github/workflows/
 │   └── ci.yml                      # ruff + pytest + canary
 ├── data/
-│   ├── manifest.yaml               # (unused for P3, data is fetched dynamically)
-│   └── tcga-laml/                  # populated by `make data`, git-ignored
+│   ├── manifest.yaml               # source of truth: 153 MAF UUIDs + clinical, sha256-pinned
+│   └── tcga-laml/                  # populated + hash-verified by `make data`, git-ignored
 ├── src/tp53_hrd/
 │   ├── audit.py                    # NDJSON hash-chained ledger emit
 │   ├── tracking.py                 # MLflow run wrapper (no-op fallback)
 │   ├── canary.py                   # deterministic smoke test
+│   ├── gdc.py                      # GDC open-tier enumeration (manifest refresh)
 │   ├── maf.py                      # load + combine aliquot MAFs
 │   ├── annotate.py                 # TP53 tier classification
 │   ├── clinical.py                 # GDC clinical fetch + parse
 │   ├── cohort.py                   # patient-level selection (seed=42)
 │   ├── severity.py                 # composite tier + VAF score
 │   ├── survival.py                 # KM + Cox + log-rank + plot
-│   └── pipeline.py                 # end-to-end CLI entry
+│   └── pipeline.py                 # end-to-end CLI entry (fetch | refresh-manifest | run)
 ├── tests/                          # ~120 tests across all modules
 │   ├── fixtures/
 │   │   ├── canary.json

@@ -1,49 +1,963 @@
-# Public-data manifest for the capability-portrait demo.
+# Public-data manifest -- tp53-aml-hrd-severity (P3 capability portrait)
 #
-# Every input listed here must be:
-#   - publicly accessible without controlled-access tier auth
-#   - small enough that `make run` finishes in the README's stated budget
-#   - checksum-verified (sha256) so the demo is byte-reproducible
+# This manifest is the SINGLE source of truth for every public input the demo
+# consumes. `make data` downloads each entry and verifies its SHA-256, so a
+# fresh clone reproduces the exact bytes the pipeline was built on.
 #
-# Adding an input requires editing this file AND the README's "minimum
-# subset" claim. That friction is intentional (see docs/what-is-out-of-scope.md).
+# All inputs are NIH GDC open-tier (no controlled-access auth). Two sources:
+#
+#   1. clinical:  one POST to the GDC /cases endpoint for the TCGA-LAML project
+#                 (survival fields). The raw JSON response is byte-stable for a
+#                 fixed query, so its sha256 is pinned directly.
+#   2. inputs:    153 per-aliquot WXS "aliquot ensemble masked" somatic MAFs
+#                 (open tier) for TCGA-LAML, each fetched by GDC file UUID from
+#                 the /data endpoint. GDC stores these as immutable artifacts,
+#                 so each file's sha256 is stable across downloads/machines.
+#
+# Total raw MAF bytes: 1,562,904 (~1.56 MB) -- well within the README's
+# "make run finishes in minutes" budget.
+#
+# To regenerate after GDC adds/removes files (a PR-sized decision):
+#   python -m tp53_hrd.pipeline refresh-manifest        # re-enumerate file set
+#   python -m tp53_hrd.pipeline fetch --write-checksums  # download + fill sha256
+# then review the diff and commit. Every later `make data` re-verifies each hash.
 #
 # Schema:
-#   inputs:
-#     - url:       https://...                # public URL
-#       path:      relative/path/inside/data/ # destination under data/
-#       sha256:    <64-hex>                   # required
-#       size_mb:   <int>                      # informational
-#       license:   <SPDX or text>             # required
-#       source:    <one-line provenance>      # required
+#   clinical: { endpoint, method, project, fields[], path, sha256, license, source }
+#   inputs:   - { url, path, sha256, size_bytes, license, source }
 
-# NOTE (tp53-aml-hrd-severity): this repo does NOT consume this manifest at runtime.
-# TCGA-LAML MAFs + clinical are fetched from the NIH GDC open tier by the pipeline
-# (load_combined_maf / load_or_fetch_clinical during `make run`). The entry below is
-# the inherited scaffold placeholder, kept only so `make data` has a target; see the
-# commented GDC example further down for the real provenance.
+clinical:
+  endpoint: https://api.gdc.cancer.gov/cases
+  method: POST
+  project: TCGA-LAML
+  fields:
+    - submitter_id
+    - demographic.vital_status
+    - demographic.days_to_death
+    - diagnoses.days_to_last_follow_up
+    - diagnoses.age_at_diagnosis
+  size: 500
+  path: tcga-laml/clinical.json
+  sha256: 067366dd9b9f24c37489f0a1b7c1ee26f8e259cadbf8f1cece7d7c9d7d1e3f43
+  license: NIH GDC Data Use Agreement (open tier)
+  source: TCGA-LAML clinical metadata, GDC /cases endpoint
+
 inputs:
-  - url: https://example.org/tiny-fixture.tsv
-    path: fixtures/tiny.tsv
-    sha256: 0000000000000000000000000000000000000000000000000000000000000000
-    size_mb: 1
-    license: CC0-1.0
-    source: "Replace this stub in the derived repo with real public-data URLs."
-
-# Per-project examples (uncomment and edit in the derived repo):
-#
-# P3 (tp53-aml-hrd-severity):
-#   - url: https://api.gdc.cancer.gov/data/<file-uuid>
-#     path: tcga-laml/<sample>.vcf.gz
-#     sha256: <hash>
-#     size_mb: 5
-#     license: NIH GDC Data Use Agreement (open tier)
-#     source: TCGA-LAML cohort, GDC Data Portal
-#
-# P1 (healthomics-lab-orchestrator):
-#   - url: https://sra-download.ncbi.nlm.nih.gov/traces/sra<n>/SRR/...
-#     path: rnaseq/SRR1039508_1M.fastq.gz
-#     sha256: <hash>
-#     size_mb: 80
-#     license: Public Domain (SRA)
-#     source: Himes airway smooth muscle (downsampled to 1M reads)
+  - url: https://api.gdc.cancer.gov/data/01219ecd-2bcc-4100-85ff-abc903ad6ce3
+    path: tcga-laml/mafs/01219ecd-2bcc-4100-85ff-abc903ad6ce3.maf.gz
+    sha256: 6392aaac4dbbfbaf4c9762308929ad0433303e8f49169253866338900ef9745c
+    size_bytes: 6892
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 01219ecd-2bcc-4100-85ff-abc903ad6ce3 (77afecb1-83d5-4c89-b099-a0b38cbda3ef.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/016bbfe2-53fa-4def-9f1e-2bacdfeea18d
+    path: tcga-laml/mafs/016bbfe2-53fa-4def-9f1e-2bacdfeea18d.maf.gz
+    sha256: 6d5c1500be73ec4f3181e25d2b7b480659f62daee6b9e6391fd55f1426a4c7c7
+    size_bytes: 4341
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 016bbfe2-53fa-4def-9f1e-2bacdfeea18d (086f89f3-eab9-45a7-b1f9-5ff277bd0a6a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/01a7d4e5-584f-4994-b15b-c58a06ca9c72
+    path: tcga-laml/mafs/01a7d4e5-584f-4994-b15b-c58a06ca9c72.maf.gz
+    sha256: bd0c0409aa72aaed500283d982e844f6ce65e595f57d94f23f7f5b51889909ca
+    size_bytes: 5224
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 01a7d4e5-584f-4994-b15b-c58a06ca9c72 (065d255c-cf4a-4058-81c3-357a0a575e1e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/025945dc-88f2-4a9e-80b0-616223752bec
+    path: tcga-laml/mafs/025945dc-88f2-4a9e-80b0-616223752bec.maf.gz
+    sha256: b9b6011fb3a333cf767cdca8d95b8394728dd95f97f2c3882d2bf7a0f55511b3
+    size_bytes: 2435
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 025945dc-88f2-4a9e-80b0-616223752bec (93b9c98c-f06a-4e01-a05e-6afb756972b2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/041e2e3f-9452-48a5-950f-483d70618cb7
+    path: tcga-laml/mafs/041e2e3f-9452-48a5-950f-483d70618cb7.maf.gz
+    sha256: 34c5ddb40d02ea66c6a79ab26b305cd26e5390e7cd93fe615d17bcd85c5811de
+    size_bytes: 5186
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 041e2e3f-9452-48a5-950f-483d70618cb7 (9e2b0669-79cf-47d3-afe9-ca7f89056457.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/05706345-2ed1-4037-8ebb-06b3aedaf0c1
+    path: tcga-laml/mafs/05706345-2ed1-4037-8ebb-06b3aedaf0c1.maf.gz
+    sha256: e0c2de230e5adffac2341189b8f9a07864f721369995cebd2aa2f78b669dd2de
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 05706345-2ed1-4037-8ebb-06b3aedaf0c1 (cfa94e00-18fc-4710-882b-99ce2373878a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/06522f6c-ebca-4019-b445-c3c2c2719c78
+    path: tcga-laml/mafs/06522f6c-ebca-4019-b445-c3c2c2719c78.maf.gz
+    sha256: 8c543658b5072d316ff5ee9e913b52b5945d3585eb97de477b665ebcdee1b297
+    size_bytes: 190553
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 06522f6c-ebca-4019-b445-c3c2c2719c78 (0512b3a1-9954-46a8-8a43-66e9fa1b7657.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/06a0c367-e314-4007-a609-fbe4e04f59d8
+    path: tcga-laml/mafs/06a0c367-e314-4007-a609-fbe4e04f59d8.maf.gz
+    sha256: 8f87951ccf60ee3f59679c544be25cca8cdfe12af308457cdfb20885110c786e
+    size_bytes: 7363
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 06a0c367-e314-4007-a609-fbe4e04f59d8 (6e947342-c43b-4038-9410-3669caca9175.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/07c73952-8da0-49dc-8ca2-dc51b4b8a0a6
+    path: tcga-laml/mafs/07c73952-8da0-49dc-8ca2-dc51b4b8a0a6.maf.gz
+    sha256: e9191ddc1ac603ed37369ad31d77b158cc901e0b22e43e2144eeba01d07b6247
+    size_bytes: 1979
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 07c73952-8da0-49dc-8ca2-dc51b4b8a0a6 (66356376-6873-4796-9dc6-73e159fa259a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/10586c01-40eb-4df5-a5c1-2c72bd43567b
+    path: tcga-laml/mafs/10586c01-40eb-4df5-a5c1-2c72bd43567b.maf.gz
+    sha256: 74da395295af659d27f582ab4ac8d5d42780ec1d149df82362a6e166041f4241
+    size_bytes: 3817
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 10586c01-40eb-4df5-a5c1-2c72bd43567b (b2c9852a-4b93-418e-9a30-d44b15782108.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/136ee151-96ea-4048-bd9c-0200b85e9638
+    path: tcga-laml/mafs/136ee151-96ea-4048-bd9c-0200b85e9638.maf.gz
+    sha256: ac5f436ef69b1c0c84dd61380a640336de244e40922c10c00338eb6245aa5657
+    size_bytes: 1711
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 136ee151-96ea-4048-bd9c-0200b85e9638 (d29b9d72-6905-4a7a-8f41-9f39a680c105.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/15472418-1722-4e55-aa7c-7e45a0e8e48b
+    path: tcga-laml/mafs/15472418-1722-4e55-aa7c-7e45a0e8e48b.maf.gz
+    sha256: 0c9b8434a9d48e679da7b94f399a97ef95c4a56807591818f6f59839e2af5b06
+    size_bytes: 1726
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 15472418-1722-4e55-aa7c-7e45a0e8e48b (2ee80091-b82c-4c7b-a41d-001f8bc7752a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1730e1cf-213d-40de-955d-4133fd176bb9
+    path: tcga-laml/mafs/1730e1cf-213d-40de-955d-4133fd176bb9.maf.gz
+    sha256: 628523c24355253905ce7f823a0e2a40d4ffbd3675d4710a930eb7c2700abf0f
+    size_bytes: 2896
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1730e1cf-213d-40de-955d-4133fd176bb9 (3c87a6de-d57b-4c81-9d9c-09643cf0b633.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/19ea7971-ac2f-4e33-959e-f4a40faba6bf
+    path: tcga-laml/mafs/19ea7971-ac2f-4e33-959e-f4a40faba6bf.maf.gz
+    sha256: dbd5ff5d2f2c5bf90def147aa88cbfd315ee76599f4896bcd37275a3ebebf2a7
+    size_bytes: 17291
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 19ea7971-ac2f-4e33-959e-f4a40faba6bf (b0d2fd23-ee3d-4ab4-ba38-5ed825be98c9.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1ba55ac3-51dd-4c41-be08-481f301057c1
+    path: tcga-laml/mafs/1ba55ac3-51dd-4c41-be08-481f301057c1.maf.gz
+    sha256: 16011faafccef68c901b0e1fe49ed4ec1634d7b7eae229a62ab2013ae475aee8
+    size_bytes: 1707
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1ba55ac3-51dd-4c41-be08-481f301057c1 (ec60e311-8cca-424f-b3a1-0c303776a932.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1bd3e423-c687-43aa-a8c1-9a93a6ee2eb2
+    path: tcga-laml/mafs/1bd3e423-c687-43aa-a8c1-9a93a6ee2eb2.maf.gz
+    sha256: d02bcb93c7a6ca5a0ca2d6350a1865e2c17d7027de70bc5b2a9ab5d2d4b07e9d
+    size_bytes: 8550
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1bd3e423-c687-43aa-a8c1-9a93a6ee2eb2 (85f8a726-022a-44b5-9d92-15bb51cd4c9b.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1c46515c-08bc-4d7c-b34a-e0d7764cd1d8
+    path: tcga-laml/mafs/1c46515c-08bc-4d7c-b34a-e0d7764cd1d8.maf.gz
+    sha256: 8e8a98f264746039c01611d070194d52cdfcfcdd3105f6bbfec7280cb2f7a1e9
+    size_bytes: 2316
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1c46515c-08bc-4d7c-b34a-e0d7764cd1d8 (9c3aadea-de61-480d-96f4-3ad55a0bed2f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1c8d1cc1-fff4-492e-bc84-23e18ba90799
+    path: tcga-laml/mafs/1c8d1cc1-fff4-492e-bc84-23e18ba90799.maf.gz
+    sha256: 8b04391c57e9afdba64070e102bac3d66a107759c90221b3abb0c11654e4c654
+    size_bytes: 1642
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1c8d1cc1-fff4-492e-bc84-23e18ba90799 (5a23bf49-cf31-4310-939a-0755007605e4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1f261b6b-425b-4399-9ec1-0fd9ca017a2e
+    path: tcga-laml/mafs/1f261b6b-425b-4399-9ec1-0fd9ca017a2e.maf.gz
+    sha256: d9aec16b8b3b5e8c18f6d415d2ffb80085334c4904fae460841e9d0e7dc718fa
+    size_bytes: 1141
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1f261b6b-425b-4399-9ec1-0fd9ca017a2e (38f88e47-7acb-4a27-81eb-c9873e3317f4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1f6e20a1-b4f1-47c0-90ff-ed20a45e0f4d
+    path: tcga-laml/mafs/1f6e20a1-b4f1-47c0-90ff-ed20a45e0f4d.maf.gz
+    sha256: 30715af8e5fec5ad7c6d57b3a9cf589f8abc2dd318559c972aa891aa4da686ef
+    size_bytes: 7686
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1f6e20a1-b4f1-47c0-90ff-ed20a45e0f4d (48efc2f6-afed-4c20-b072-47b8c260ad7c.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1f7f93d4-8102-47f6-9621-2ef35627ea34
+    path: tcga-laml/mafs/1f7f93d4-8102-47f6-9621-2ef35627ea34.maf.gz
+    sha256: b2fcb73c81443cd8d4c99333cf29c3548126e1c8dd60de9b12d9c1a6a7977633
+    size_bytes: 2985
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1f7f93d4-8102-47f6-9621-2ef35627ea34 (21075100-1b8d-4921-ac2d-76c0b6566f56.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/1fcb7b97-84cf-4ed8-9c86-554bfd8d61cc
+    path: tcga-laml/mafs/1fcb7b97-84cf-4ed8-9c86-554bfd8d61cc.maf.gz
+    sha256: 73d948fc51626f20243f0516cf3cf7aea1f5b0d501e7f56e1feca1877a8600ab
+    size_bytes: 3572
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 1fcb7b97-84cf-4ed8-9c86-554bfd8d61cc (2bec78f7-e92b-4c32-9d96-2143c0810ff9.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/20277997-1c1a-45d5-b302-09252f38acc7
+    path: tcga-laml/mafs/20277997-1c1a-45d5-b302-09252f38acc7.maf.gz
+    sha256: 09c89dd459c47e0b1937b6ef8a903aaa69a25f6e1be6d410db1997109a896b11
+    size_bytes: 97576
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 20277997-1c1a-45d5-b302-09252f38acc7 (d0a31c6a-9a96-4e68-8894-c07d94954556.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/2159803b-208a-4a62-a395-6cbb708aa426
+    path: tcga-laml/mafs/2159803b-208a-4a62-a395-6cbb708aa426.maf.gz
+    sha256: 3c4f9caaa0cc4b2b6b0583e39780491ba90aff802baaec7f62e088a826157a1e
+    size_bytes: 1143
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 2159803b-208a-4a62-a395-6cbb708aa426 (a4dca10d-0926-4c29-a15f-4b42cef909fc.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/22e52b20-7c44-4830-b070-333a4f133d38
+    path: tcga-laml/mafs/22e52b20-7c44-4830-b070-333a4f133d38.maf.gz
+    sha256: c3b0818e49ed34094c386f1bdc33da766708581368ae0fcff14c868778ad559c
+    size_bytes: 3072
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 22e52b20-7c44-4830-b070-333a4f133d38 (4b497849-bfc0-473a-a397-a0104b8df94e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/2447c91d-c799-4a31-98bb-a9a52dd4396b
+    path: tcga-laml/mafs/2447c91d-c799-4a31-98bb-a9a52dd4396b.maf.gz
+    sha256: 7e5574c739667ebb69cb0a905dbd50e2128281440fbc6ae41fbc49f5a42203d9
+    size_bytes: 2156
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 2447c91d-c799-4a31-98bb-a9a52dd4396b (c33aea0e-bc89-45c4-aa04-74a51a44a1c9.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/26c129dd-5d84-44c3-abea-0f780e488078
+    path: tcga-laml/mafs/26c129dd-5d84-44c3-abea-0f780e488078.maf.gz
+    sha256: 7713dafa734648532a04008b990e9afdedf3333f813a56cb2332e9978c655e1d
+    size_bytes: 1141
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 26c129dd-5d84-44c3-abea-0f780e488078 (35807530-bc9b-4f1d-994a-d4ceb30a413c.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/26fc5b30-e38e-4fda-adcd-614b3c266fda
+    path: tcga-laml/mafs/26fc5b30-e38e-4fda-adcd-614b3c266fda.maf.gz
+    sha256: 9809ad88b62e66887692163613466286934fc466be6404578517a70bcca0eb82
+    size_bytes: 11551
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 26fc5b30-e38e-4fda-adcd-614b3c266fda (7c490d40-42e0-428a-9be1-e73b44649886.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/27e34f9f-94ee-49f4-9c76-a22178c1724f
+    path: tcga-laml/mafs/27e34f9f-94ee-49f4-9c76-a22178c1724f.maf.gz
+    sha256: 17bcf99de914a99ac10c4002c2683b393196612fed79a1e5053c47e40d9a54b9
+    size_bytes: 7688
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 27e34f9f-94ee-49f4-9c76-a22178c1724f (ae8de9a0-6b8f-4baf-87a4-b50f0f7dc1a7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/287b1422-71c4-4dc8-8305-0d00a0e03760
+    path: tcga-laml/mafs/287b1422-71c4-4dc8-8305-0d00a0e03760.maf.gz
+    sha256: ca206f73d3cd33a80af05a25070229f53f1d17943681d1384ac518457a634b96
+    size_bytes: 2369
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 287b1422-71c4-4dc8-8305-0d00a0e03760 (b12e942f-b6fa-47b3-ba28-6bbd439258ee.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/29b39be1-365e-4eec-8f6d-280a91d068dd
+    path: tcga-laml/mafs/29b39be1-365e-4eec-8f6d-280a91d068dd.maf.gz
+    sha256: 4a21d158bc2c592dfbea601ec10ba150aefd0542060c837f0c2db23b030024b1
+    size_bytes: 1699
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 29b39be1-365e-4eec-8f6d-280a91d068dd (8e54503b-e9d6-4480-b4cc-9d2dafd180f6.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/29be564e-2947-4c3d-bdad-19ce1a28e723
+    path: tcga-laml/mafs/29be564e-2947-4c3d-bdad-19ce1a28e723.maf.gz
+    sha256: 515755c3cbff44d5d0e2bc11a37c55bc3aec29f02ef3c5fd907d9582103b072c
+    size_bytes: 6781
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 29be564e-2947-4c3d-bdad-19ce1a28e723 (380483de-6889-4c28-876b-91083401d662.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/2bfbaa4d-9f1f-43d2-ae92-c708bbec11e1
+    path: tcga-laml/mafs/2bfbaa4d-9f1f-43d2-ae92-c708bbec11e1.maf.gz
+    sha256: 6c35e4e680cf59febb5cdde1b1cf556da4d401d4e8fb08cb78ab00144b5c24ec
+    size_bytes: 1791
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 2bfbaa4d-9f1f-43d2-ae92-c708bbec11e1 (08e7bce1-20ae-484b-aa39-2dd6ad80e824.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/2e063c89-309b-413b-a1e8-5c3d2b06370f
+    path: tcga-laml/mafs/2e063c89-309b-413b-a1e8-5c3d2b06370f.maf.gz
+    sha256: 8b0657eab123930f5caede9ac2cfab3c74276abd4571541ab4c19a2bf8a89894
+    size_bytes: 4736
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 2e063c89-309b-413b-a1e8-5c3d2b06370f (3d851b29-eb9e-4873-aa33-4661d5f33c3e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/2e2d1d4f-5c09-40e2-81b6-600f7b7bd102
+    path: tcga-laml/mafs/2e2d1d4f-5c09-40e2-81b6-600f7b7bd102.maf.gz
+    sha256: a969c2cd466cffe0a9eb2ff0043bd06acbe72e0dbc07ed6d2559f9c4b1a08ea2
+    size_bytes: 4499
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 2e2d1d4f-5c09-40e2-81b6-600f7b7bd102 (a3380d82-a144-4581-9302-1729ff4d11a4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/2ef844e0-04cc-493f-ae78-0988971de82d
+    path: tcga-laml/mafs/2ef844e0-04cc-493f-ae78-0988971de82d.maf.gz
+    sha256: 044cff03275cd5fb5000a7f21b6f67da6c336384be3996c875679efbd0d94e81
+    size_bytes: 6092
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 2ef844e0-04cc-493f-ae78-0988971de82d (1eae0adb-49e2-4723-864c-5b4a5e6c94dc.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/32fe6526-7dc6-4d52-85ee-291e6030a5d4
+    path: tcga-laml/mafs/32fe6526-7dc6-4d52-85ee-291e6030a5d4.maf.gz
+    sha256: a11322f8823ba15de526b5d67388ef5f657b2a248814b050556e444b93b844ef
+    size_bytes: 2975
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 32fe6526-7dc6-4d52-85ee-291e6030a5d4 (41f3b7f5-f00d-46c3-8907-df14e1e7566a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/33cbe0be-5e2c-474a-a50b-9b5432cb70f0
+    path: tcga-laml/mafs/33cbe0be-5e2c-474a-a50b-9b5432cb70f0.maf.gz
+    sha256: 5209d460efdd74b0c4dce4956961338ebd84ff67249f02b9ac9dda9a7fc15709
+    size_bytes: 2679
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 33cbe0be-5e2c-474a-a50b-9b5432cb70f0 (17829f69-1e6b-4b99-888d-0c0f8db863a2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/3629c842-3e7d-4012-bde3-20406817028d
+    path: tcga-laml/mafs/3629c842-3e7d-4012-bde3-20406817028d.maf.gz
+    sha256: 82db013ffa7d5de24525b841e76b0a12604741335d1d34639275c5c52a830a52
+    size_bytes: 2272
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 3629c842-3e7d-4012-bde3-20406817028d (bd51d913-ebb1-4588-83a5-b2cad2a83c4f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/38427266-a7e7-427c-b4f0-3a82ae5d64ff
+    path: tcga-laml/mafs/38427266-a7e7-427c-b4f0-3a82ae5d64ff.maf.gz
+    sha256: 5a482431a834cb3e3a7b75ff00c88790702ad2a2a030b283d91daf1abe87240f
+    size_bytes: 7635
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 38427266-a7e7-427c-b4f0-3a82ae5d64ff (fe79c0c8-bcef-4a39-aafe-af6c4f5b56c8.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/3eb19c8f-ce15-4f88-9cca-7459c0716b1d
+    path: tcga-laml/mafs/3eb19c8f-ce15-4f88-9cca-7459c0716b1d.maf.gz
+    sha256: 41308a3ea79e0cfbc5724ec9ab2b0c336bc762483cc99ae5074cb9a943f2bb14
+    size_bytes: 8595
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 3eb19c8f-ce15-4f88-9cca-7459c0716b1d (294fb317-5ed4-491a-b85a-38b311453d06.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/3ef05bd7-ebde-45fc-8257-0165a0ea2e4c
+    path: tcga-laml/mafs/3ef05bd7-ebde-45fc-8257-0165a0ea2e4c.maf.gz
+    sha256: 98e079b7b5e800289dae8a0275369e37178ee14286994f40d7ac5fd18389b3b2
+    size_bytes: 1903
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 3ef05bd7-ebde-45fc-8257-0165a0ea2e4c (998a956b-31e0-4de3-8d7e-2a274b772bca.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/438dd482-9563-4207-b7c4-6f7c10b42f17
+    path: tcga-laml/mafs/438dd482-9563-4207-b7c4-6f7c10b42f17.maf.gz
+    sha256: 0a45742902676293f0db9ee436e3313a2531d3652d5e2221ec9c82c9d5e86c9a
+    size_bytes: 6181
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 438dd482-9563-4207-b7c4-6f7c10b42f17 (9d9126d4-f879-456e-bff4-e2e13c293809.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/43f9f1bb-1e56-4bf6-a78e-312a11cd7260
+    path: tcga-laml/mafs/43f9f1bb-1e56-4bf6-a78e-312a11cd7260.maf.gz
+    sha256: 99887d53c97daf4d7249d4b95de84feeace66452af5d244301db596fabbe58c9
+    size_bytes: 1731
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 43f9f1bb-1e56-4bf6-a78e-312a11cd7260 (a8878332-4bd8-4e9b-a03c-972dd1f29b0f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/4552d39e-79d4-4e21-926b-f81b17706708
+    path: tcga-laml/mafs/4552d39e-79d4-4e21-926b-f81b17706708.maf.gz
+    sha256: 4ab56ce6415cc726340bd42a7bf1ba4b0d02119803f30a42924bc2c7dec7f420
+    size_bytes: 1883
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 4552d39e-79d4-4e21-926b-f81b17706708 (0a85904b-8598-4a41-9e23-315f06022c6a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/45d38ed5-b1b4-447e-8a8b-bf9457b5e061
+    path: tcga-laml/mafs/45d38ed5-b1b4-447e-8a8b-bf9457b5e061.maf.gz
+    sha256: aae54eccc947bdeb548603cd0bee5478e1221eee128f0439b2383cf4a645d52d
+    size_bytes: 1724
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 45d38ed5-b1b4-447e-8a8b-bf9457b5e061 (4813f6e5-b2f4-404d-b0f7-06829d9efb31.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/46371551-8b44-4788-8660-c669228dea37
+    path: tcga-laml/mafs/46371551-8b44-4788-8660-c669228dea37.maf.gz
+    sha256: 30298fc2ae67df6c98d07ff4ac28e4a916546777d80f29c102de8fbe9c5686d6
+    size_bytes: 2100
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 46371551-8b44-4788-8660-c669228dea37 (e665e5c1-d17f-4fb7-9392-b9fe07525475.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/49079534-7952-45ad-873d-a1792984f6b2
+    path: tcga-laml/mafs/49079534-7952-45ad-873d-a1792984f6b2.maf.gz
+    sha256: 04a259e29ac9ab892e0a24b10e6fddcfd4c459e1309e40792a2a3ad93fd6934a
+    size_bytes: 1138
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 49079534-7952-45ad-873d-a1792984f6b2 (ae28082d-7bf3-4fd9-97c5-a59a7b91806f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/49957ae9-c88f-46f4-a6fd-8bf7d2db07d1
+    path: tcga-laml/mafs/49957ae9-c88f-46f4-a6fd-8bf7d2db07d1.maf.gz
+    sha256: 25ad203fa09dd4ddebc672ea92c42cb4faacb86bef5d5a0795f745fd22b0a079
+    size_bytes: 7311
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 49957ae9-c88f-46f4-a6fd-8bf7d2db07d1 (fe3a94c1-79ba-460f-bb9a-c424c10d7429.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/4a0d99e4-9dec-409a-b0fc-8de0a0e9a36f
+    path: tcga-laml/mafs/4a0d99e4-9dec-409a-b0fc-8de0a0e9a36f.maf.gz
+    sha256: 8e4ca05ac8387bcc2c15a8957126c1e687f9b56ad9a3dfa4f2ef2cc3be27a276
+    size_bytes: 4018
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 4a0d99e4-9dec-409a-b0fc-8de0a0e9a36f (ebf1d5a5-7f7b-488a-9d37-37d43b804e05.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/4ac62603-f567-4ec2-b653-c3cf2cb5e93b
+    path: tcga-laml/mafs/4ac62603-f567-4ec2-b653-c3cf2cb5e93b.maf.gz
+    sha256: 08f38d7ba1b742136ab931138646f3e85b60a56f76c841519bc129ff9aa11953
+    size_bytes: 2130
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 4ac62603-f567-4ec2-b653-c3cf2cb5e93b (69709a3d-55d7-4713-8ba0-8d60796bfdb1.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/4d753fc5-b70b-4eb1-887b-d32348058887
+    path: tcga-laml/mafs/4d753fc5-b70b-4eb1-887b-d32348058887.maf.gz
+    sha256: a0e96481c955749c16b4ebcc02c9c458cf7b805391234750badf813c47e6f3ed
+    size_bytes: 9722
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 4d753fc5-b70b-4eb1-887b-d32348058887 (d01af06a-3bd4-48ee-a8e3-b01104477a3d.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/50be6d57-898f-41fa-b5f6-1312754d6b93
+    path: tcga-laml/mafs/50be6d57-898f-41fa-b5f6-1312754d6b93.maf.gz
+    sha256: ba66e0774e054926d6269d2c57380f4b412e9c37695be847cb9bc19e828bff73
+    size_bytes: 5257
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 50be6d57-898f-41fa-b5f6-1312754d6b93 (ce02e6e1-ccf4-4caf-b0c5-548a6c649263.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/511258a9-da1a-42eb-8a35-b45c9942cf56
+    path: tcga-laml/mafs/511258a9-da1a-42eb-8a35-b45c9942cf56.maf.gz
+    sha256: c36768c4d6ca146f1bc68941b4728c3e7cf7203d6f6ce5bc589b7052cc78d4f5
+    size_bytes: 200493
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 511258a9-da1a-42eb-8a35-b45c9942cf56 (09ce21c9-a36c-49ce-802a-46941860d70f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/53255a27-72bb-4c8e-a953-85fab2d1e34a
+    path: tcga-laml/mafs/53255a27-72bb-4c8e-a953-85fab2d1e34a.maf.gz
+    sha256: d61d9266e5bfd8242125b63e1656a1d6e62c6ae2a64a1e63723893bc1d7a6754
+    size_bytes: 1756
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 53255a27-72bb-4c8e-a953-85fab2d1e34a (054576e9-efe8-471f-b9a2-e22a6d035fc2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/534371d7-8ac4-46df-a044-6b12af4a7c27
+    path: tcga-laml/mafs/534371d7-8ac4-46df-a044-6b12af4a7c27.maf.gz
+    sha256: ccd13dce6e93a44050606dfe46b06cc0c656d72b843961468ea2923adf7a052e
+    size_bytes: 5606
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 534371d7-8ac4-46df-a044-6b12af4a7c27 (174d382c-c2da-4525-b578-c8d5dd8457ca.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/5623cc1a-7949-45af-88ab-00a62210f307
+    path: tcga-laml/mafs/5623cc1a-7949-45af-88ab-00a62210f307.maf.gz
+    sha256: a3f01d6b72b8b891fcdec91bf1d0db8286b338b543dddf8f85ee3bf9f3b717bc
+    size_bytes: 2188
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 5623cc1a-7949-45af-88ab-00a62210f307 (d547cf8c-eec0-4531-8e66-a0979d099860.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/564c1c84-57f6-4eda-a805-f8f542fee621
+    path: tcga-laml/mafs/564c1c84-57f6-4eda-a805-f8f542fee621.maf.gz
+    sha256: 227d408ac9247c4b84acf239af024cde153daf1687c1f0f2922e71debf68a92b
+    size_bytes: 2785
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 564c1c84-57f6-4eda-a805-f8f542fee621 (1b2c56c1-b12b-4d32-bad4-8aba03b0166a.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/577a19b9-6ee7-4be0-9e68-84421425f79d
+    path: tcga-laml/mafs/577a19b9-6ee7-4be0-9e68-84421425f79d.maf.gz
+    sha256: d6e3898294ae4f4e69b7a1ffe8609f23c3679339a7f7f00dd3ec5899896bcf75
+    size_bytes: 8448
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 577a19b9-6ee7-4be0-9e68-84421425f79d (5337c44c-b186-4f5c-be0e-ba8fef50fb99.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/57915934-129a-4428-9003-6d23710b26d9
+    path: tcga-laml/mafs/57915934-129a-4428-9003-6d23710b26d9.maf.gz
+    sha256: 6c3e6a2f360aa10ac8d7b33a6d27e568db2fdc6fcca300ac73d7603c3247e793
+    size_bytes: 6197
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 57915934-129a-4428-9003-6d23710b26d9 (7926e6d1-6ee6-4c1c-8367-f70e676c3e15.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/58c8578e-5dea-40ea-bea3-5646a1e1d9c4
+    path: tcga-laml/mafs/58c8578e-5dea-40ea-bea3-5646a1e1d9c4.maf.gz
+    sha256: dcc5f7295b23e188e4ac2e6f9d27a6bdfdc424b09e1174058df88d1a60fe35bb
+    size_bytes: 7598
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 58c8578e-5dea-40ea-bea3-5646a1e1d9c4 (2fafa435-fc5a-4a00-896c-d799fc907ea5.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/5e29bc99-3f20-4e1b-bcdd-599b5f73211b
+    path: tcga-laml/mafs/5e29bc99-3f20-4e1b-bcdd-599b5f73211b.maf.gz
+    sha256: df54f2d0fb9d530f8007a5696026c00658af77d5f9f8b35f72d31c3166dd7a2d
+    size_bytes: 4341
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 5e29bc99-3f20-4e1b-bcdd-599b5f73211b (e8214333-68d5-49da-a03f-a7848aca33dc.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/60577b06-293d-47b2-93ad-d8bc95690212
+    path: tcga-laml/mafs/60577b06-293d-47b2-93ad-d8bc95690212.maf.gz
+    sha256: 537408865470bbdf288f442ccd083e3259c72c7b1a253673a2eed972a08136a6
+    size_bytes: 2532
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 60577b06-293d-47b2-93ad-d8bc95690212 (ee4eced4-63e1-49f4-9d05-ecc8a2764415.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/62c96251-e604-4247-8f5c-d9714b25672a
+    path: tcga-laml/mafs/62c96251-e604-4247-8f5c-d9714b25672a.maf.gz
+    sha256: 5c338f19023b4c1edbe715687c7b52698225ef48153e1063b49f5dea77a2a1ee
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 62c96251-e604-4247-8f5c-d9714b25672a (239fc2cd-e8ed-44da-b3da-ab86efdbbf7f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/6424b0e4-967d-4a72-a2ab-b81f3f99d1e8
+    path: tcga-laml/mafs/6424b0e4-967d-4a72-a2ab-b81f3f99d1e8.maf.gz
+    sha256: d6a0711795f197d2400f182b63614c5b3ca1087de0488f6aefacf4db591a4637
+    size_bytes: 1665
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 6424b0e4-967d-4a72-a2ab-b81f3f99d1e8 (e98aabbc-7ebc-4fc6-b8fa-362dd673aa30.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/649e0efb-1878-41d4-b605-c9597f36be4f
+    path: tcga-laml/mafs/649e0efb-1878-41d4-b605-c9597f36be4f.maf.gz
+    sha256: 7cc490cf8eed10cb98a78071cd9b597317fea66d4b6a6ccb488ab06582ef566e
+    size_bytes: 1746
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 649e0efb-1878-41d4-b605-c9597f36be4f (0937bc7e-6559-4abc-862c-410a46af90f2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/64eca71c-4034-4b88-930b-7ceca89dfe60
+    path: tcga-laml/mafs/64eca71c-4034-4b88-930b-7ceca89dfe60.maf.gz
+    sha256: 865d2873907350f523fad7712960a8f3a04587cdb21766635a2064b3f3caa538
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 64eca71c-4034-4b88-930b-7ceca89dfe60 (65c7dde2-6aa2-4832-94f4-957e9824072d.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/662410c9-4512-49dd-b054-ec776d18d10f
+    path: tcga-laml/mafs/662410c9-4512-49dd-b054-ec776d18d10f.maf.gz
+    sha256: 555b05e06bb2a42694898c9c128d0c150ab67db3e6d7a52a1acb16567c7fbe22
+    size_bytes: 6899
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 662410c9-4512-49dd-b054-ec776d18d10f (9106c2e2-c77b-41af-be3b-a88e6eb44574.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/671d4688-19fc-4e3b-a30a-c042e1a594e0
+    path: tcga-laml/mafs/671d4688-19fc-4e3b-a30a-c042e1a594e0.maf.gz
+    sha256: 821847229a88934e7321e0fa7458e849041f6bf2cd7d6a69d53022b345f58cf7
+    size_bytes: 6834
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 671d4688-19fc-4e3b-a30a-c042e1a594e0 (8c0a8bd3-ae90-403f-b501-cbf56dc646d4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/682fbd4c-6291-4ced-a1e3-d8ae6e95ec1f
+    path: tcga-laml/mafs/682fbd4c-6291-4ced-a1e3-d8ae6e95ec1f.maf.gz
+    sha256: ba6941ee29d0337903ceaaa1d30c44632918eef9e8d57299a368fe1244e760b9
+    size_bytes: 4737
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 682fbd4c-6291-4ced-a1e3-d8ae6e95ec1f (d3fc4691-11d5-417b-bcee-3fdae52981c7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/686e29d3-fdd6-45c2-92b8-132858b3c442
+    path: tcga-laml/mafs/686e29d3-fdd6-45c2-92b8-132858b3c442.maf.gz
+    sha256: 5cdc2213fe9ec544378799dcbfbbf70c6554b2e2006e8629b206f8e5340dcaa4
+    size_bytes: 1816
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 686e29d3-fdd6-45c2-92b8-132858b3c442 (bcd30fd9-61eb-4e80-835f-5a3831cb2bbe.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/6bc2e16e-d300-4501-ac38-a0b9e75b9933
+    path: tcga-laml/mafs/6bc2e16e-d300-4501-ac38-a0b9e75b9933.maf.gz
+    sha256: 6ecba118af67f491125fbe40f6004e197edda07884f37dbd99c66fb19898aa25
+    size_bytes: 4608
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 6bc2e16e-d300-4501-ac38-a0b9e75b9933 (1d80e9fd-c994-41e9-a0fd-77cf4477528d.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/6e2f14bd-2887-49d9-a5f4-30991fa10646
+    path: tcga-laml/mafs/6e2f14bd-2887-49d9-a5f4-30991fa10646.maf.gz
+    sha256: ba88753c78e025d5d122019dff39594ac170daf610e487256d3c3844b530421b
+    size_bytes: 1929
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 6e2f14bd-2887-49d9-a5f4-30991fa10646 (23c93672-b93a-400c-8c06-c0ed21fa3567.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/6f8f5ec3-f486-46e9-a1d6-4734469708e8
+    path: tcga-laml/mafs/6f8f5ec3-f486-46e9-a1d6-4734469708e8.maf.gz
+    sha256: 6cb89b2daae20a5a3aeef2bf935f63d989b24b2d1e593a8b4399a1024674f168
+    size_bytes: 2854
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 6f8f5ec3-f486-46e9-a1d6-4734469708e8 (0ffff486-95a7-4e12-8da3-d5b3d33baedc.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/711040df-4b77-4317-99a7-475474ccb738
+    path: tcga-laml/mafs/711040df-4b77-4317-99a7-475474ccb738.maf.gz
+    sha256: d60111965e6c69755ecb9139382ab3c1cb586c4dc8fdd5a902c2527cda69a315
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 711040df-4b77-4317-99a7-475474ccb738 (5698443b-dd00-4c95-aab3-8a5360109c04.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/719f06f9-0f9c-497c-b7f4-7292f791518d
+    path: tcga-laml/mafs/719f06f9-0f9c-497c-b7f4-7292f791518d.maf.gz
+    sha256: 37c10fbd69f15d1443657f91d2c1a17eda5c9371440b7f7c559e0476b63e5c43
+    size_bytes: 4948
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 719f06f9-0f9c-497c-b7f4-7292f791518d (c9514a87-46e3-4eff-a5ea-aafeb8c6b37f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/75bf0453-d2d3-49c2-9a17-f308c175f85b
+    path: tcga-laml/mafs/75bf0453-d2d3-49c2-9a17-f308c175f85b.maf.gz
+    sha256: 91f1c039b8a8eaaec37d601fca2009a830e3b9cc4254dae49c91ac6618444ca5
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 75bf0453-d2d3-49c2-9a17-f308c175f85b (2e500d00-ab03-4eb0-8568-78ad240dffd0.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/78c4d9f8-5bbc-4329-a99c-890fb555f7a0
+    path: tcga-laml/mafs/78c4d9f8-5bbc-4329-a99c-890fb555f7a0.maf.gz
+    sha256: b98da57ada55079b29314d546b7e6b31baf3dd72b4b414da070e662aaf007d05
+    size_bytes: 155272
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 78c4d9f8-5bbc-4329-a99c-890fb555f7a0 (2b06dd99-f6e0-49d1-984e-28564673c8e2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/79eecf53-c27e-46bb-9db7-097b63dd33de
+    path: tcga-laml/mafs/79eecf53-c27e-46bb-9db7-097b63dd33de.maf.gz
+    sha256: 4e2a93a65092be9941483604ebeb347a1a21e396223ad025eb9a51c727adc678
+    size_bytes: 3836
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 79eecf53-c27e-46bb-9db7-097b63dd33de (5cc0ff8a-ec55-46dc-bdeb-ba6dadcc136f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/7a2b437f-c63f-49f8-9a9f-2b8725f3fc22
+    path: tcga-laml/mafs/7a2b437f-c63f-49f8-9a9f-2b8725f3fc22.maf.gz
+    sha256: aa41d6ecb6ad52c963ec807c102021deae7e292eed06b966016a0d3d3b2b898a
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 7a2b437f-c63f-49f8-9a9f-2b8725f3fc22 (19d0e87e-cb25-4ecb-af4e-b2aa8526799d.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/7a54e601-f0dc-4771-ad40-02435b59d948
+    path: tcga-laml/mafs/7a54e601-f0dc-4771-ad40-02435b59d948.maf.gz
+    sha256: d750091c3c114da9d94b689c0142afa9efa1d6fe051ae6504233a1680f441500
+    size_bytes: 1140
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 7a54e601-f0dc-4771-ad40-02435b59d948 (ca5dd05d-a5a7-4823-aa50-dbc9110e59ab.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/7cd208af-2df7-4408-9ac1-ab927314e8d4
+    path: tcga-laml/mafs/7cd208af-2df7-4408-9ac1-ab927314e8d4.maf.gz
+    sha256: 9a55fe91fbb7e4e1e8da2dc32e0289328a712a8a1ffd7761a21a94ba81c484dd
+    size_bytes: 8231
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 7cd208af-2df7-4408-9ac1-ab927314e8d4 (b7c01a91-ce0d-46da-929a-8719f1a5842e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/849c86d5-5dca-48f6-8b10-a27e0c0bd116
+    path: tcga-laml/mafs/849c86d5-5dca-48f6-8b10-a27e0c0bd116.maf.gz
+    sha256: 6c9d2a2958b513b1b11a2ba4364ae8f1b076316b7e84b3e9e4d2629c85200136
+    size_bytes: 1734
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 849c86d5-5dca-48f6-8b10-a27e0c0bd116 (58264787-08c6-4155-b27d-b29185955887.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/86c5bba5-5690-451f-80ed-0ada6d5a3356
+    path: tcga-laml/mafs/86c5bba5-5690-451f-80ed-0ada6d5a3356.maf.gz
+    sha256: b87f5731561bd5f07a6fc6611efbb69aa88c910f66eabd7445360304cd32cd61
+    size_bytes: 8288
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 86c5bba5-5690-451f-80ed-0ada6d5a3356 (87401b71-79aa-48c2-b22a-66aff62a78d7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/8742ad7e-0347-421a-b575-7979a7b4a99c
+    path: tcga-laml/mafs/8742ad7e-0347-421a-b575-7979a7b4a99c.maf.gz
+    sha256: 0b21d0179fdebff487f247355dac6fa633b2d61b3f607a91451c0459bb7e0235
+    size_bytes: 72246
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 8742ad7e-0347-421a-b575-7979a7b4a99c (19aff4c3-70c6-41d4-9db8-ac7dc526b1e1.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/885df6c8-3588-4213-88e2-57572a08a810
+    path: tcga-laml/mafs/885df6c8-3588-4213-88e2-57572a08a810.maf.gz
+    sha256: 02f8c1b35345e67c45e162f195670ef0da48d71559ffaf0f6d653ae45c83bde2
+    size_bytes: 2863
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 885df6c8-3588-4213-88e2-57572a08a810 (6e0e3c5c-3dee-45a3-a17c-97808c866de7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/89492b83-d19a-4183-8cad-cca3e1ae83e3
+    path: tcga-laml/mafs/89492b83-d19a-4183-8cad-cca3e1ae83e3.maf.gz
+    sha256: a1a1619b72bacb1ec196b3404241fdfa425b0a6e2a62ebedeb2c81b381fad603
+    size_bytes: 2416
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 89492b83-d19a-4183-8cad-cca3e1ae83e3 (0eefe106-a309-40e1-839d-aa8521496aa7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/8c77a4a1-8ada-4108-abc6-7842d2218d05
+    path: tcga-laml/mafs/8c77a4a1-8ada-4108-abc6-7842d2218d05.maf.gz
+    sha256: 12f913a658fa53f5176123bed377941e9a3481adf2ab73c468eb7c756e891964
+    size_bytes: 6907
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 8c77a4a1-8ada-4108-abc6-7842d2218d05 (88019cd5-e926-4626-a44c-4e15b07db746.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/8c8d4e33-b40a-4e63-ad0a-8e30a0fa0d71
+    path: tcga-laml/mafs/8c8d4e33-b40a-4e63-ad0a-8e30a0fa0d71.maf.gz
+    sha256: ea951d9a8ee87219e1e0884e39d817b93ff37b784d34ae191e904ba883444850
+    size_bytes: 3697
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 8c8d4e33-b40a-4e63-ad0a-8e30a0fa0d71 (c8694a83-a89d-4928-965a-9eca86cfd83e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/8f472f7d-e950-4937-8e49-94977d2660f4
+    path: tcga-laml/mafs/8f472f7d-e950-4937-8e49-94977d2660f4.maf.gz
+    sha256: ad3b622ef75a6bf98ca0e103c9346b17711508d986d752021ba4fe0338041380
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 8f472f7d-e950-4937-8e49-94977d2660f4 (6f6d8922-42a4-4fc2-a9fe-7142fbf50bf4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/8fdace44-9647-4d58-af44-90d48ea8af6b
+    path: tcga-laml/mafs/8fdace44-9647-4d58-af44-90d48ea8af6b.maf.gz
+    sha256: dec64474caea11cf3d52e5b5b668a01100037eb76b3f98589f35d237e424732d
+    size_bytes: 11075
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 8fdace44-9647-4d58-af44-90d48ea8af6b (15ee51a4-aa54-479f-8903-a85d131b34c6.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/9022c7ce-1981-4ed5-94ab-be0d6c1ea34b
+    path: tcga-laml/mafs/9022c7ce-1981-4ed5-94ab-be0d6c1ea34b.maf.gz
+    sha256: 6c07107cd06cf0e95010237f65a1dcf63227fc67b67cc307d5ae28bf157f5a8f
+    size_bytes: 3624
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 9022c7ce-1981-4ed5-94ab-be0d6c1ea34b (058020fc-d920-4f6f-8a68-fc1b724075ee.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/91932fc6-fcf0-4f0f-98ff-9bc2d8f53bf5
+    path: tcga-laml/mafs/91932fc6-fcf0-4f0f-98ff-9bc2d8f53bf5.maf.gz
+    sha256: 93f73b979ea0e3285a6600ebd24e5f7525c36b330ad031af577d0495efb5c532
+    size_bytes: 5109
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 91932fc6-fcf0-4f0f-98ff-9bc2d8f53bf5 (2e71a236-3072-40d9-9c07-e051d70cdbca.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/925c1716-d693-4229-84a8-ec46dea88a01
+    path: tcga-laml/mafs/925c1716-d693-4229-84a8-ec46dea88a01.maf.gz
+    sha256: 36f22e416c5fa11cccdc5ec22a93a75767067aa0c56e1d8aa6211e6eebcfa73a
+    size_bytes: 9717
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 925c1716-d693-4229-84a8-ec46dea88a01 (5b64eda5-ea30-4cc4-98ea-624a2678ef56.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/932581f5-bf34-4b33-a0f3-eb16297b2ebc
+    path: tcga-laml/mafs/932581f5-bf34-4b33-a0f3-eb16297b2ebc.maf.gz
+    sha256: e193dd902f59ce1a79b0b07e65dcee25589482cca381780e249ddb24b7565e25
+    size_bytes: 5485
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 932581f5-bf34-4b33-a0f3-eb16297b2ebc (2f4506fd-adf9-4a98-9a31-9e0285027a19.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/94df78ce-f33d-4aab-aa2f-97e13376f1cc
+    path: tcga-laml/mafs/94df78ce-f33d-4aab-aa2f-97e13376f1cc.maf.gz
+    sha256: 46515047fe89f7532b948ff4c3498e81a4a0ed2dd0b4519c87fdb5a6fcca32e9
+    size_bytes: 7917
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 94df78ce-f33d-4aab-aa2f-97e13376f1cc (5f1136ac-9d31-4854-b351-d10346db9d59.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/97e2c00c-03dc-435f-90cc-3d1aaa48100f
+    path: tcga-laml/mafs/97e2c00c-03dc-435f-90cc-3d1aaa48100f.maf.gz
+    sha256: 3fdcf99d61dde497f427cf2d824a1f67b513b253c844107bd78495e270ee1680
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 97e2c00c-03dc-435f-90cc-3d1aaa48100f (00528688-5c76-4d3d-9370-6b73fddf9bba.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/9995a5b4-4025-4102-80f5-2a87b7aae098
+    path: tcga-laml/mafs/9995a5b4-4025-4102-80f5-2a87b7aae098.maf.gz
+    sha256: 675beee0e58e4522a01d2026e2bda8f823bd11e8ad2fbe69812e974c80f2516e
+    size_bytes: 2811
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 9995a5b4-4025-4102-80f5-2a87b7aae098 (bd4d5403-c366-4f84-acde-1d09b6b07e1c.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/9d3432d5-14b4-4d3b-b36a-810f38cc311e
+    path: tcga-laml/mafs/9d3432d5-14b4-4d3b-b36a-810f38cc311e.maf.gz
+    sha256: 4fdd6a01705482a88e7472fa4b3fcf4a35e6263ebf2d37426aa97efcb6c98097
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file 9d3432d5-14b4-4d3b-b36a-810f38cc311e (3ab45c59-f1a2-466b-8cb2-359c17503b54.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a010b8ff-0276-44c3-9d6b-aac620ee897e
+    path: tcga-laml/mafs/a010b8ff-0276-44c3-9d6b-aac620ee897e.maf.gz
+    sha256: 8c3e1ff3ce3b4126b45feb90593389650db0a6e013bfcd17fc281ad3062ac733
+    size_bytes: 1142
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a010b8ff-0276-44c3-9d6b-aac620ee897e (a99871cc-9154-4c9a-8cd6-852782702af3.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a2022838-46f6-4d54-a693-99f335e52378
+    path: tcga-laml/mafs/a2022838-46f6-4d54-a693-99f335e52378.maf.gz
+    sha256: 8e206368015792d1b3f2f87260af84489a51efa0b3a1fc45255b014898438ff5
+    size_bytes: 9024
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a2022838-46f6-4d54-a693-99f335e52378 (1d8b38b6-2167-4da5-b14c-6b04bcd4d741.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a36a0e12-3c16-4f51-bf68-0fa7f6f5646f
+    path: tcga-laml/mafs/a36a0e12-3c16-4f51-bf68-0fa7f6f5646f.maf.gz
+    sha256: cc03c97a691fa4fa4edb706b006a20b29693864c863e44a8888d2c2c672f7c93
+    size_bytes: 5431
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a36a0e12-3c16-4f51-bf68-0fa7f6f5646f (c345d961-7a44-4e51-b466-a46517bece5b.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a72689b3-2839-4f09-990a-492ed1c7fded
+    path: tcga-laml/mafs/a72689b3-2839-4f09-990a-492ed1c7fded.maf.gz
+    sha256: 13c0a21dd05d4391365bbce38a4819bbe2c2f0f41e5c9d91dd5ce8d3554601f7
+    size_bytes: 211411
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a72689b3-2839-4f09-990a-492ed1c7fded (e9e079d5-9559-4f30-82c7-e7083d6297fa.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a75c8e10-1de5-4382-8cb0-9f7f2506fa19
+    path: tcga-laml/mafs/a75c8e10-1de5-4382-8cb0-9f7f2506fa19.maf.gz
+    sha256: 3a1271021572fe67fb0015ff39c6841b4efde305c72929da38510b048e9709b0
+    size_bytes: 3488
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a75c8e10-1de5-4382-8cb0-9f7f2506fa19 (64f5346a-86ca-4566-9a0c-d2e490b580d3.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a805664f-439c-49c3-ae4d-44932e47136c
+    path: tcga-laml/mafs/a805664f-439c-49c3-ae4d-44932e47136c.maf.gz
+    sha256: 81599e7b5c7fe332efd6f656d55e2c2d94141829355ae302a38ab1f4ff69496c
+    size_bytes: 1691
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a805664f-439c-49c3-ae4d-44932e47136c (262f80c5-fd35-4d85-bf89-ffb5b0f6addb.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a83f6c6e-b41a-438c-9591-93fe486c7905
+    path: tcga-laml/mafs/a83f6c6e-b41a-438c-9591-93fe486c7905.maf.gz
+    sha256: ee8bd41adab42324232bd6e429b034ffa89b5dfa37592b6642b8f148518e76af
+    size_bytes: 6503
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a83f6c6e-b41a-438c-9591-93fe486c7905 (0aae0307-dcf0-43d6-8a6d-4610369fa93e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/a8bf0329-1cfe-40bf-88fb-718d313e7d7d
+    path: tcga-laml/mafs/a8bf0329-1cfe-40bf-88fb-718d313e7d7d.maf.gz
+    sha256: b53f76b3fd8024808f8f590d44a85d4afeb01e54fc96d7c4e4d58c5d90ffc8cc
+    size_bytes: 9414
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file a8bf0329-1cfe-40bf-88fb-718d313e7d7d (0c3c7ce6-5442-47f9-8d32-aacc264a90bf.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/abc1ceb6-0b8c-48a0-a7cf-34933520e32a
+    path: tcga-laml/mafs/abc1ceb6-0b8c-48a0-a7cf-34933520e32a.maf.gz
+    sha256: f7f2f2b4bc09252fec154016c3c843c164e132a861da2e220b75004090e93ae0
+    size_bytes: 6322
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file abc1ceb6-0b8c-48a0-a7cf-34933520e32a (b3b90cd7-016d-4666-b07b-ee40a8ea371d.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ac6a41f1-be24-4168-aa7d-0995acc74377
+    path: tcga-laml/mafs/ac6a41f1-be24-4168-aa7d-0995acc74377.maf.gz
+    sha256: 221a8db5d1a14b2a19e3e69bcfea462346b8151d8c5bf8ea71ba65a9f6a0b71f
+    size_bytes: 1701
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ac6a41f1-be24-4168-aa7d-0995acc74377 (a8f0835b-f9dd-4ef9-8789-812e58beb095.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ac8a555e-8442-493c-b777-6eabc065699a
+    path: tcga-laml/mafs/ac8a555e-8442-493c-b777-6eabc065699a.maf.gz
+    sha256: 46530eaada8f34c834bdd6c8889b74cd8e6abadb9fb5cb5cb61a6d9e8e73cd11
+    size_bytes: 1651
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ac8a555e-8442-493c-b777-6eabc065699a (77bacd48-34ce-4a40-aed7-b507caf8acd8.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ad1ae575-854c-41b8-8cc3-bac368dcb8ee
+    path: tcga-laml/mafs/ad1ae575-854c-41b8-8cc3-bac368dcb8ee.maf.gz
+    sha256: 1dccdfe614d342607b18c59919aba244c3089d7248cc92b12bfe84e8c97fa786
+    size_bytes: 1143
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ad1ae575-854c-41b8-8cc3-bac368dcb8ee (16668f7b-5a42-4042-92db-1fbecd899c43.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ae8f14e3-2e1b-42d5-8989-7e47b2c46674
+    path: tcga-laml/mafs/ae8f14e3-2e1b-42d5-8989-7e47b2c46674.maf.gz
+    sha256: a385ed0736cea3929db9b51d9bb7d0b186f792a3547993bc88da882f7c589651
+    size_bytes: 8478
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ae8f14e3-2e1b-42d5-8989-7e47b2c46674 (be2af30c-fa1e-4abd-b7a1-63c1ae5e4b4b.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/b1db7e60-4a35-4b3d-a9ce-d3993f140138
+    path: tcga-laml/mafs/b1db7e60-4a35-4b3d-a9ce-d3993f140138.maf.gz
+    sha256: c182384da896a18590bcd57f6962159ec6b3b9ef5a4e2a700434fe986fe78834
+    size_bytes: 1140
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file b1db7e60-4a35-4b3d-a9ce-d3993f140138 (d225e1ec-cb89-4b40-9f11-ad77abb89199.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/b2c84dd1-1c0e-4a26-ae95-cb5e9ba1b3c3
+    path: tcga-laml/mafs/b2c84dd1-1c0e-4a26-ae95-cb5e9ba1b3c3.maf.gz
+    sha256: 7b0cc373e5824abfdf5af475419cd7dc0d82a1cce23ad6890eedf8be3ed2f874
+    size_bytes: 4731
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file b2c84dd1-1c0e-4a26-ae95-cb5e9ba1b3c3 (fff882cb-4223-4472-a28a-3fc75f1d9b49.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/b317d6d7-4649-4ddc-8a58-121f15a3c354
+    path: tcga-laml/mafs/b317d6d7-4649-4ddc-8a58-121f15a3c354.maf.gz
+    sha256: 2f79172491d2f9e44b4f3fbb13b8181bc087331abbbb0dea4673b0220cb51c61
+    size_bytes: 5531
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file b317d6d7-4649-4ddc-8a58-121f15a3c354 (f3d092f6-9304-4daf-9531-ceacbe28ed14.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/b38fcc60-e673-43fb-bfe1-8d0a9a770877
+    path: tcga-laml/mafs/b38fcc60-e673-43fb-bfe1-8d0a9a770877.maf.gz
+    sha256: dee8a84cb7baf3cb9014d16ea4cf698b2c771d86c0646c33bc1c210067c6e16e
+    size_bytes: 7727
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file b38fcc60-e673-43fb-bfe1-8d0a9a770877 (200b2f6f-12e2-45a9-a62e-e8f3dbf562ae.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/b3cdec17-94fb-4ad8-9dcc-cb4d51db292c
+    path: tcga-laml/mafs/b3cdec17-94fb-4ad8-9dcc-cb4d51db292c.maf.gz
+    sha256: 154af57b4d4118f04b2f83cc621175f8215539d25ee9e92ba6517643ce6dbc8f
+    size_bytes: 9349
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file b3cdec17-94fb-4ad8-9dcc-cb4d51db292c (ec02d14e-0396-49b6-9bdc-a4ca282612d4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/b8ce8592-d3a4-4812-835d-5b8c8380aaf3
+    path: tcga-laml/mafs/b8ce8592-d3a4-4812-835d-5b8c8380aaf3.maf.gz
+    sha256: 9318c4e5c7a7e63001bb6ca1ac4eef59acbd2350bf7f7b90536b38c05f478c35
+    size_bytes: 1141
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file b8ce8592-d3a4-4812-835d-5b8c8380aaf3 (b333bc40-2dd9-4cea-8236-b74a4ae7f26e.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/bbbb423c-30e9-4871-9d70-3d6e35b9518b
+    path: tcga-laml/mafs/bbbb423c-30e9-4871-9d70-3d6e35b9518b.maf.gz
+    sha256: 1918613bbbfacbae7a0c3c8118dcc33f830af1a193cd11c8d781bea838e5b5f4
+    size_bytes: 1143
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file bbbb423c-30e9-4871-9d70-3d6e35b9518b (358d24d3-aba0-416d-978c-3670c43ff1da.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/bbc5d728-015c-4242-a043-4f6b7c832996
+    path: tcga-laml/mafs/bbc5d728-015c-4242-a043-4f6b7c832996.maf.gz
+    sha256: 2038e2467d9ef8bffb9ba460630095b17840ec9749cff99e0d7aa39bee77c2e7
+    size_bytes: 6754
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file bbc5d728-015c-4242-a043-4f6b7c832996 (64dc80b4-5f84-40ba-98eb-20aafbcf7798.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/bbf06ee0-b044-494e-9202-ce7f67847847
+    path: tcga-laml/mafs/bbf06ee0-b044-494e-9202-ce7f67847847.maf.gz
+    sha256: df1cc30e7bb1836e5ef516adc26a657ac5ee9b4d29a72995703eab4106fdfa00
+    size_bytes: 1141
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file bbf06ee0-b044-494e-9202-ce7f67847847 (bfb14620-1ee4-491c-9b8d-a8e909c75373.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/bce8cf19-cf9a-468e-8899-f2b360c541ca
+    path: tcga-laml/mafs/bce8cf19-cf9a-468e-8899-f2b360c541ca.maf.gz
+    sha256: b5d7d1908c8e39cac6bcff35b2a1e75941684076a58cb1c4a8a14920417b47dd
+    size_bytes: 2385
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file bce8cf19-cf9a-468e-8899-f2b360c541ca (08d2701c-5e73-47ab-8e31-808efa7e2736.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/c32dc57c-8bf2-495f-aaca-c2778e10a934
+    path: tcga-laml/mafs/c32dc57c-8bf2-495f-aaca-c2778e10a934.maf.gz
+    sha256: 2e1260c980297e097f2a2cad41876d9a084cf1407b13a950092ea509579b5519
+    size_bytes: 6420
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file c32dc57c-8bf2-495f-aaca-c2778e10a934 (c1255b74-785b-46c3-907c-b177673368c6.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/c36faad0-d8a4-48af-8c24-a3416df677fe
+    path: tcga-laml/mafs/c36faad0-d8a4-48af-8c24-a3416df677fe.maf.gz
+    sha256: 91f6674bc2b4de2e4467c645de09e22aae20aa7983d4765ef8b77449e090be4b
+    size_bytes: 2854
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file c36faad0-d8a4-48af-8c24-a3416df677fe (b831b331-7173-43a2-8387-74b41cb37ae8.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/c6ac6fbd-2418-4f35-966d-df6ef5c35437
+    path: tcga-laml/mafs/c6ac6fbd-2418-4f35-966d-df6ef5c35437.maf.gz
+    sha256: f7e5ccaee31fa400be334f575cc55799303bbc2cc9ee4e60e516eaa11ecd0e3b
+    size_bytes: 5199
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file c6ac6fbd-2418-4f35-966d-df6ef5c35437 (1216ea70-d837-488f-ac38-c0268fb83aba.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/cb60cedb-7ef7-419d-8733-c494eb62279d
+    path: tcga-laml/mafs/cb60cedb-7ef7-419d-8733-c494eb62279d.maf.gz
+    sha256: 63db16ccf3ea133cd9d7b618aa2b3124f47f35fae1295329d0a7656ec130f8c7
+    size_bytes: 3626
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file cb60cedb-7ef7-419d-8733-c494eb62279d (ca58911d-0011-44d2-94e3-5924042de6b3.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/cd78183a-e89e-4d66-9afa-b7d48de7c14f
+    path: tcga-laml/mafs/cd78183a-e89e-4d66-9afa-b7d48de7c14f.maf.gz
+    sha256: 3715a10cf203af12d1fd82f5668b85d03d11b1eb62105772e652dfc400699188
+    size_bytes: 5360
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file cd78183a-e89e-4d66-9afa-b7d48de7c14f (e84c006b-c561-4f76-82f3-ba221c284888.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ce12a4ef-7127-4313-9caa-8f194ca95dbf
+    path: tcga-laml/mafs/ce12a4ef-7127-4313-9caa-8f194ca95dbf.maf.gz
+    sha256: b0f7502da620c14f5b0de7200c7c4414173d3a153de484322a2774d062040dcf
+    size_bytes: 1718
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ce12a4ef-7127-4313-9caa-8f194ca95dbf (6b261da2-d699-43a1-93e8-648c2fb686e7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/cf40e170-cc5b-4fb8-882f-c3ac0ec92bda
+    path: tcga-laml/mafs/cf40e170-cc5b-4fb8-882f-c3ac0ec92bda.maf.gz
+    sha256: 70fe2afd944e1e0d1f87a2aac17dcc1a148bf26e52d80ef02f94c3bf4679d02c
+    size_bytes: 9558
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file cf40e170-cc5b-4fb8-882f-c3ac0ec92bda (e50dbfa5-1de6-418c-b629-494c9981a993.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/d64caad7-69ab-42e9-a884-b74e2b67393a
+    path: tcga-laml/mafs/d64caad7-69ab-42e9-a884-b74e2b67393a.maf.gz
+    sha256: 2cd2ef071335a5d0b5008ab1873a85063e6b01bbc1aa1af8fe13dac8cb1964aa
+    size_bytes: 2502
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file d64caad7-69ab-42e9-a884-b74e2b67393a (0d56dc78-e903-4f7d-8b02-c29cd047863d.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/d6d6bf3a-a1d0-4a50-b6a3-e3b923914687
+    path: tcga-laml/mafs/d6d6bf3a-a1d0-4a50-b6a3-e3b923914687.maf.gz
+    sha256: 72fce3f62d7ee8155400e76d4cecc56a00f1d199e3b98fd8ab36ddd0ed13a0f6
+    size_bytes: 14623
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file d6d6bf3a-a1d0-4a50-b6a3-e3b923914687 (95198ed7-9b23-4ebd-a899-99cfb1f603f3.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/d9685970-3091-48b9-b165-3682ac35bb0f
+    path: tcga-laml/mafs/d9685970-3091-48b9-b165-3682ac35bb0f.maf.gz
+    sha256: 6456c16b188df6d753dce0b3d21dd3e8cbfd95bbe1e9a71563583eeae23ade40
+    size_bytes: 8436
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file d9685970-3091-48b9-b165-3682ac35bb0f (97386b4c-72d8-4828-8d12-c124f10d39a6.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/db033c3c-d870-431c-901c-07ee777608d2
+    path: tcga-laml/mafs/db033c3c-d870-431c-901c-07ee777608d2.maf.gz
+    sha256: f1dd9a400c63af82155b27a82b334af0fddab88a7623eda3e1ac9fc607e0b2ff
+    size_bytes: 10923
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file db033c3c-d870-431c-901c-07ee777608d2 (f5d2a6bd-ec41-46b8-8ac0-8bfcf8151b48.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/dd211070-bafb-481d-871d-2e0e21614908
+    path: tcga-laml/mafs/dd211070-bafb-481d-871d-2e0e21614908.maf.gz
+    sha256: 5b65ffe4e90cbfc90399639beca8426a610537cc918de698f8dc9dbd98a4879b
+    size_bytes: 3884
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file dd211070-bafb-481d-871d-2e0e21614908 (508c85e6-dea2-4a45-aaf5-7de93c1f5ea7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/dd5cde11-5677-4591-8f70-1e82a4ebaa24
+    path: tcga-laml/mafs/dd5cde11-5677-4591-8f70-1e82a4ebaa24.maf.gz
+    sha256: 8cc66cb4ba4c3d3547dff54db3bcc4f453ec04865a43be372cecb1260d58846c
+    size_bytes: 1139
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file dd5cde11-5677-4591-8f70-1e82a4ebaa24 (44ef5801-4d8b-4bab-b666-048a630ef1f0.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/de69dc95-0cbd-451b-84a5-eaf829d6efae
+    path: tcga-laml/mafs/de69dc95-0cbd-451b-84a5-eaf829d6efae.maf.gz
+    sha256: c26c47527cebd5aa321e0920693545412d811d0408ae76c89a65f7efcd4aaba6
+    size_bytes: 4137
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file de69dc95-0cbd-451b-84a5-eaf829d6efae (5e1d4bc5-3b13-49f0-8e27-2db9f94493f7.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e090f93f-b8f9-41b3-9007-17bf9519777b
+    path: tcga-laml/mafs/e090f93f-b8f9-41b3-9007-17bf9519777b.maf.gz
+    sha256: 931f8219865062ef91f3ec97303a43cb68e4883a10deec0d0a515260ec411cdc
+    size_bytes: 2643
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e090f93f-b8f9-41b3-9007-17bf9519777b (d876fc44-dc33-4f12-9df5-0ea7f6bc874c.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e1a765ad-266f-4c12-82a0-82ef0b04a0bd
+    path: tcga-laml/mafs/e1a765ad-266f-4c12-82a0-82ef0b04a0bd.maf.gz
+    sha256: 5821572b6d572e29461bf235d52cc44c2aeafa5bdf0b65fc2964ba85f79d8d0f
+    size_bytes: 1835
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e1a765ad-266f-4c12-82a0-82ef0b04a0bd (7920acc1-a02a-442c-b6f2-aa496e521200.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e49bac3b-4838-4257-98db-269f8489b3d6
+    path: tcga-laml/mafs/e49bac3b-4838-4257-98db-269f8489b3d6.maf.gz
+    sha256: 3a7258eb1fe6da0e1bedb344ca58dc1d023993104f7b9757c95f264f6ce6b88f
+    size_bytes: 2681
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e49bac3b-4838-4257-98db-269f8489b3d6 (8f77e9b8-b58c-4171-8c3e-e53817afd10b.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e6368f4b-6aab-4a6a-ac85-386ce7c327d7
+    path: tcga-laml/mafs/e6368f4b-6aab-4a6a-ac85-386ce7c327d7.maf.gz
+    sha256: 0668e40aec7e13a93f21ca41414dbcbe5ccc337153d36a4d07cdf16a7f3bd310
+    size_bytes: 6742
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e6368f4b-6aab-4a6a-ac85-386ce7c327d7 (f1f1b065-d3cb-4197-be52-4a4e7b5556ae.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e991bec7-e9cf-48e7-a315-c794973dd37b
+    path: tcga-laml/mafs/e991bec7-e9cf-48e7-a315-c794973dd37b.maf.gz
+    sha256: 3e7923d5c212b79127cc25b2306899599f9b22fe0752fd5c60b273580b4ac553
+    size_bytes: 2372
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e991bec7-e9cf-48e7-a315-c794973dd37b (fa9eff0d-437c-424e-aef8-2a289267f880.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e9b67683-d015-4b51-9ce9-480af487fb1d
+    path: tcga-laml/mafs/e9b67683-d015-4b51-9ce9-480af487fb1d.maf.gz
+    sha256: 856f1c340d8e19a53997148512832b5efd9ef265fdf12b59f1416d311abe6029
+    size_bytes: 3695
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e9b67683-d015-4b51-9ce9-480af487fb1d (d7b6f91b-dfee-4299-a4cb-ddc76073e82f.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e9c2a140-1316-4f95-8e18-234cff8a45ba
+    path: tcga-laml/mafs/e9c2a140-1316-4f95-8e18-234cff8a45ba.maf.gz
+    sha256: eceb7496287d23ddea66071213eeffcb20aac0534a55311d7aebd447e4f6986a
+    size_bytes: 5278
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e9c2a140-1316-4f95-8e18-234cff8a45ba (22a6d4df-3ade-4c86-ab62-8c5c0ded47c0.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/e9f3e880-dd87-409e-bff8-b3754bf70149
+    path: tcga-laml/mafs/e9f3e880-dd87-409e-bff8-b3754bf70149.maf.gz
+    sha256: 3ce8300dfb1077ccee9affb3765bbe2dd7adcf7ade0faef2c2726010d494d6be
+    size_bytes: 8026
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file e9f3e880-dd87-409e-bff8-b3754bf70149 (91edbb7e-447e-4d85-8b62-26b742a41ac0.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ee2d27c6-75a0-4bd7-9ba2-04c991f78c8f
+    path: tcga-laml/mafs/ee2d27c6-75a0-4bd7-9ba2-04c991f78c8f.maf.gz
+    sha256: 663aedba5313082b54f641368d36bdf501eb35b71e7ab39bc620e1c4cb9e8981
+    size_bytes: 1794
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ee2d27c6-75a0-4bd7-9ba2-04c991f78c8f (f5d5630b-97b9-46bf-ab31-b4985efc11a2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/ef03a20b-3f0b-49b0-96ae-9791751b8dc0
+    path: tcga-laml/mafs/ef03a20b-3f0b-49b0-96ae-9791751b8dc0.maf.gz
+    sha256: b35ced9988e5d77d7d2ab105753a3fdea0d6bee1b148c3ecb431a1806801c69b
+    size_bytes: 2531
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file ef03a20b-3f0b-49b0-96ae-9791751b8dc0 (c4263ab8-fb30-4b74-a4c1-ec14031dc9a2.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/efebcf20-77ba-4a65-90ef-c3c0c7aad0c8
+    path: tcga-laml/mafs/efebcf20-77ba-4a65-90ef-c3c0c7aad0c8.maf.gz
+    sha256: 83d228887cbb1a0228e2c3ab4b1d8ef3b7e14df0f44003f6942950e849a963a9
+    size_bytes: 2814
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file efebcf20-77ba-4a65-90ef-c3c0c7aad0c8 (91556111-15d5-49ed-9596-b3b6f3b2c1be.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/f408e7cc-3537-45a2-8ca0-f40c07a2d96a
+    path: tcga-laml/mafs/f408e7cc-3537-45a2-8ca0-f40c07a2d96a.maf.gz
+    sha256: ed7679cfdee29680ad98e6d86cb92de02556269444086ef77657c5ed8240f539
+    size_bytes: 1980
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file f408e7cc-3537-45a2-8ca0-f40c07a2d96a (3b66c940-5f70-432d-94f5-6d639ae040db.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/f410018a-7712-4336-95e8-4877cc5980fe
+    path: tcga-laml/mafs/f410018a-7712-4336-95e8-4877cc5980fe.maf.gz
+    sha256: d3ef67cc76cda34a33fce2541289f0044ab5f7ded9ab130268a4f3c74e8623d3
+    size_bytes: 1143
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file f410018a-7712-4336-95e8-4877cc5980fe (f07b1068-6fa0-4a9c-81f5-c0c7f3195fa4.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/f70ab353-70b8-456c-92bb-4dd72228500e
+    path: tcga-laml/mafs/f70ab353-70b8-456c-92bb-4dd72228500e.maf.gz
+    sha256: 55f9a75c806c873fa82fea2a12222109c07568aa5f85d5e653b7d99817335742
+    size_bytes: 3000
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file f70ab353-70b8-456c-92bb-4dd72228500e (399aa9f7-b48d-439f-8a68-945a50cbdfbf.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/fe72064c-22b6-4118-a4cc-430562ad2fb2
+    path: tcga-laml/mafs/fe72064c-22b6-4118-a4cc-430562ad2fb2.maf.gz
+    sha256: a41bce6394e6521b2ac66079fc4e52480e175ce3a84d5fda1349d858f6589366
+    size_bytes: 6867
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file fe72064c-22b6-4118-a4cc-430562ad2fb2 (323780cf-73f3-4183-9e29-5fdfd41a8409.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/fedff9d3-10b0-4d18-82e8-9243bb9e8df8
+    path: tcga-laml/mafs/fedff9d3-10b0-4d18-82e8-9243bb9e8df8.maf.gz
+    sha256: faa2402a31c7c50676fc76d291dc9f2f6a2530915a53fcda9ee429364695694f
+    size_bytes: 11717
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file fedff9d3-10b0-4d18-82e8-9243bb9e8df8 (99899409-b68f-41cc-9b3d-e8b021ee64e3.wxs.aliquot_ensemble_masked.maf.gz)"
+  - url: https://api.gdc.cancer.gov/data/fff4db96-cded-4336-9647-e31d6d3a2b33
+    path: tcga-laml/mafs/fff4db96-cded-4336-9647-e31d6d3a2b33.maf.gz
+    sha256: f5a56e97eced40872c089e893e940746c394c450a043f9386cca4ba7da71e8fe
+    size_bytes: 3779
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file fff4db96-cded-4336-9647-e31d6d3a2b33 (cd5fc6de-ec2d-4962-8473-dbb4089696df.wxs.aliquot_ensemble_masked.maf.gz)"

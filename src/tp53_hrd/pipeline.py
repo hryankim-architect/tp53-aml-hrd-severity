@@ -29,7 +29,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,7 +40,7 @@ from typing import Any
 import click
 import yaml
 
-from tp53_hrd import audit, tracking
+from tp53_hrd import audit, gdc, tracking
 from tp53_hrd.clinical import load_or_fetch as load_or_fetch_clinical
 from tp53_hrd.cohort import DEFAULT_SEED, select_cohort
 from tp53_hrd.maf import load_combined_maf, patient_from_barcode
@@ -69,43 +71,193 @@ def _checksum(path: Path) -> str:
     return h.hexdigest()
 
 
+def _download(url: str, dest: Path, *, timeout: float = 60.0, retries: int = 4) -> None:
+    """Download ``url`` to ``dest`` with a per-attempt timeout and retries.
+
+    GDC occasionally stalls a single connection; without a timeout a bulk fetch
+    of 150+ small files can hang indefinitely. We read the whole response (these
+    inputs are KB-scale) and write atomically only on success.
+    """
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    last: Exception | None = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as resp:
+                data = resp.read()
+            dest.write_bytes(data)
+            return
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:  # noqa: PERF203
+            last = exc
+            time.sleep(min(2**attempt, 8))
+    raise RuntimeError(f"failed to download {url} after {retries} attempts: {last}")
+
+
+def _verify_or_fetch(
+    *, dest: Path, expected: str | None, rel: str, fetch: Any
+) -> dict[str, Any]:
+    """Shared cache-check / download / verify logic for one input.
+
+    ``fetch`` is a zero-arg callable that writes ``dest`` (URL download for MAFs,
+    POST for clinical). Returns a result dict with a ``status`` of ``cached``,
+    ``downloaded`` or ``checksum_mismatch``.
+    """
+    if dest.exists() and expected and _checksum(dest) == expected:
+        return {"rel": rel, "path": str(dest), "status": "cached"}
+    fetch()
+    actual = _checksum(dest)
+    if expected and actual != expected:
+        return {
+            "rel": rel,
+            "path": str(dest),
+            "status": "checksum_mismatch",
+            "expected": expected,
+            "actual": actual,
+        }
+    return {"rel": rel, "path": str(dest), "status": "downloaded", "sha256": actual}
+
+
 def fetch_manifest(manifest_path: Path, out_dir: Path) -> dict[str, Any]:
-    """Download every entry in the manifest; verify SHA-256 checksums."""
+    """Download every input declared in the manifest; verify SHA-256.
+
+    Handles both the ``clinical`` block (one GDC ``/cases`` POST, byte-stable for
+    a fixed query) and the ``inputs`` list (per-aliquot MAFs fetched by GDC file
+    UUID). Re-running on populated data is a no-op for any input whose on-disk
+    sha256 already matches the manifest.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     with manifest_path.open("r", encoding="utf-8") as fh:
         manifest = yaml.safe_load(fh) or {}
 
-    results: list[dict[str, Any]] = []
+    result: dict[str, Any] = {}
+
+    clinical = manifest.get("clinical")
+    if clinical:
+        rel = clinical["path"]
+        dest = out_dir / rel
+
+        def _fetch_clinical(dest: Path = dest) -> None:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(gdc.fetch_clinical_raw())
+
+        result["clinical"] = _verify_or_fetch(
+            dest=dest, expected=clinical.get("sha256"), rel=rel, fetch=_fetch_clinical
+        )
+
+    inputs: list[dict[str, Any]] = []
     for entry in manifest.get("inputs", []):
         url = entry["url"]
         rel = entry["path"]
-        expected = entry.get("sha256")
-        size_mb = entry.get("size_mb")
         dest = out_dir / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
+        res = _verify_or_fetch(
+            dest=dest,
+            expected=entry.get("sha256"),
+            rel=rel,
+            fetch=lambda url=url, dest=dest: _download(url, dest),
+        )
+        if res["status"] == "downloaded":
+            res["size_bytes"] = entry.get("size_bytes")
+        inputs.append(res)
+    result["inputs"] = inputs
 
-        if dest.exists() and expected and _checksum(dest) == expected:
-            results.append({"path": str(dest), "status": "cached"})
-            continue
+    return result
 
-        urllib.request.urlretrieve(url, dest)
-        actual = _checksum(dest)
-        if expected and actual != expected:
-            results.append({
-                "path": str(dest),
-                "status": "checksum_mismatch",
-                "expected": expected,
-                "actual": actual,
-            })
-            continue
-        results.append({
-            "path": str(dest),
-            "status": "downloaded",
-            "sha256": actual,
-            "size_mb": size_mb,
-        })
 
-    return {"inputs": results}
+def write_manifest_checksums(manifest_path: Path, result: dict[str, Any]) -> int:
+    """Write freshly-computed sha256 values back into the manifest.
+
+    Comment- and order-preserving (line-based, like the multiqc-gate sibling).
+    Fills the ``clinical`` block's sha256 and every ``inputs`` entry matched by
+    ``path``. Returns the number of sha256 fields written.
+    """
+    by_rel = {
+        r["rel"]: r["sha256"]
+        for r in result.get("inputs", [])
+        if r.get("status") == "downloaded" and r.get("rel") and r.get("sha256")
+    }
+    clin = result.get("clinical") or {}
+    clin_sha = clin.get("sha256") if clin.get("status") == "downloaded" else None
+    if not by_rel and not clin_sha:
+        return 0
+
+    lines = manifest_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    url_re = re.compile(r"^\s*-\s*url:")
+    path_re = re.compile(r"^\s*path:\s*(.+?)\s*$")
+    # ``.*?`` (not ``.+?``) so a blank ``sha256:`` line — the post-refresh shape —
+    # is matched and filled, not just an already-populated one.
+    sha_re = re.compile(r"^(\s*)sha256:\s*(.*?)\s*$")
+
+    # Boundary: `inputs:` key starts the list; anything before it is the
+    # clinical block. (Both are top-level keys in the manifest.)
+    inputs_key = next(
+        (i for i, ln in enumerate(lines) if re.match(r"^inputs:\s*$", ln)), len(lines)
+    )
+    filled = 0
+
+    # --- clinical block: fill the sha256 that precedes `inputs:` -------------
+    if clin_sha is not None:
+        for j in range(inputs_key):
+            if lines[j].lstrip().startswith("#"):
+                continue
+            ms = sha_re.match(lines[j])
+            if ms:
+                lines[j] = f"{ms.group(1)}sha256: {clin_sha}\n"
+                filled += 1
+                break
+
+    # --- inputs: fill each `- url:` block by its path -----------------------
+    starts = [
+        i
+        for i, ln in enumerate(lines)
+        if i >= inputs_key and url_re.match(ln) and not ln.lstrip().startswith("#")
+    ]
+    for k, si in enumerate(starts):
+        ei = starts[k + 1] if k + 1 < len(starts) else len(lines)
+        rel = sha_i = None
+        indent = ""
+        for j in range(si, ei):
+            if lines[j].lstrip().startswith("#"):
+                continue
+            mp, ms = path_re.match(lines[j]), sha_re.match(lines[j])
+            if mp and rel is None:
+                rel = mp.group(1).strip().strip('"').strip("'")
+            if ms and sha_i is None:
+                sha_i, indent = j, ms.group(1)
+        if rel in by_rel and sha_i is not None:
+            lines[sha_i] = f"{indent}sha256: {by_rel[rel]}\n"
+            filled += 1
+
+    if filled:
+        manifest_path.write_text("".join(lines), encoding="utf-8")
+    return filled
+
+
+def refresh_manifest(manifest_path: Path) -> int:
+    """Re-enumerate the GDC TCGA-LAML MAF set and rewrite the ``inputs`` block.
+
+    Preserves the header comments and the ``clinical`` block; replaces only the
+    ``inputs:`` list with the current GDC file set (sha256 left blank, to be
+    filled by ``fetch --write-checksums``). Returns the input count written.
+    """
+    files = gdc.list_laml_maf_files()
+    entries = gdc.build_maf_inputs(files)
+
+    lines = manifest_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    inputs_key = next(
+        (i for i, ln in enumerate(lines) if re.match(r"^inputs:\s*$", ln)), None
+    )
+    head = lines[: inputs_key + 1] if inputs_key is not None else [*lines, "inputs:\n"]
+
+    body: list[str] = []
+    for e in entries:
+        body.append(f"  - url: {e['url']}\n")
+        body.append(f"    path: {e['path']}\n")
+        body.append(f"    sha256: {e['sha256']}\n")
+        body.append(f"    size_bytes: {e['size_bytes']}\n")
+        body.append(f"    license: {e['license']}\n")
+        body.append(f'    source: "{e["source"]}"\n')
+
+    manifest_path.write_text("".join(head) + "".join(body), encoding="utf-8")
+    return len(entries)
 
 
 def run_pipeline(
@@ -423,10 +575,32 @@ def cli() -> None:
     type=click.Path(file_okay=False, path_type=Path),
     default=Path("data"),
 )
-def fetch(manifest: Path, out: Path) -> None:
-    """Download public inputs declared in the manifest."""
+@click.option(
+    "--write-checksums",
+    is_flag=True,
+    help="Write freshly-computed sha256 values back into the manifest.",
+)
+def fetch(manifest: Path, out: Path, write_checksums: bool) -> None:
+    """Download + checksum-verify the public inputs declared in the manifest."""
     result = fetch_manifest(manifest, out)
+    if write_checksums:
+        result["checksums_written"] = write_manifest_checksums(manifest, result)
     click.echo(json.dumps(result, indent=2))
+
+
+@cli.command(name="refresh-manifest")
+@click.option(
+    "--manifest",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=Path("data/manifest.yaml"),
+)
+def refresh_manifest_cmd(manifest: Path) -> None:
+    """Re-enumerate the GDC TCGA-LAML MAF set into the manifest's inputs block.
+
+    Leaves sha256 blank; follow with ``fetch --write-checksums`` to fill them.
+    """
+    n = refresh_manifest(manifest)
+    click.echo(json.dumps({"manifest": str(manifest), "inputs_written": n}, indent=2))
 
 
 @cli.command()
