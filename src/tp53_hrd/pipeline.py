@@ -56,6 +56,9 @@ from tp53_hrd.survival import (
 # Default data layout — see data/manifest.yaml and clinical fetch
 MAF_DIR = Path("data/tcga-laml/mafs")
 CLINICAL_JSON = Path("data/tcga-laml/clinical.json")
+# Arm-3 ASCAT segments live under data/ too, so `make data` (manifest) can
+# pre-fetch + checksum them; scar_data caches here and skips refetch on run.
+ASCAT_DIR = Path("data/tcga-laml/ascat")
 
 
 def _run_id(name: str) -> str:
@@ -343,7 +346,11 @@ def run_pipeline(
         hrd_scar_df = None
         try:
             from tp53_hrd import scar, scar_data
-            ascat_dir = out_dir / "ascat_segments"
+            # Prefer the data/ cache populated by `make data` (manifest-pinned,
+            # checksum-verified); scar_data skips refetch when a patient's
+            # segment file is already present, and falls back to a runtime GDC
+            # fetch for any that are missing.
+            ascat_dir = ASCAT_DIR
             patient_paths = scar_data.fetch_cohort_ascat(
                 list(cohort["patient_id"]), ascat_dir
             )

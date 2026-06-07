@@ -961,3 +961,97 @@ inputs:
     size_bytes: 3779
     license: NIH GDC Data Use Agreement (open tier)
     source: "TCGA-LAML WXS aliquot ensemble masked MAF; GDC file fff4db96-cded-4336-9647-e31d6d3a2b33 (cd5fc6de-ec2d-4962-8473-dbb4089696df.wxs.aliquot_ensemble_masked.maf.gz)"
+
+  # ----- Arm-3 HRD scar: TCGA-LAML ASCAT2 allele-specific CN segments (n=15) -----
+  # One per seed=42 cohort patient (open tier). Total 128,872 bytes. Fetched by
+  # `make data` into data/tcga-laml/ascat/ and read by Arm-3 (scar_data) at run time.
+  - url: https://api.gdc.cancer.gov/data/42cbe493-0f3d-44a1-93c6-e1f78e5ce14c
+    path: tcga-laml/ascat/TCGA-AB-2805__TCGA-LAML.cac1ca72-3d7a-4eb6-bb3a-00b7ddbedf2f.ascat2.allelic_specific.seg.txt
+    sha256: af3f1982612805465874ae4a9e341d8c56a789a3a024bce14cbaf6e1fb1e70a2
+    size_bytes: 9898
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2805; GDC file 42cbe493-0f3d-44a1-93c6-e1f78e5ce14c"
+  - url: https://api.gdc.cancer.gov/data/f0cd75c2-8250-4b86-9dbd-6a985f80d293
+    path: tcga-laml/ascat/TCGA-AB-2813__TCGA-LAML.59e096b3-4b90-4544-9057-a6e5f733311d.ascat2.allelic_specific.seg.txt
+    sha256: eeb489d423a4a4900664b01366d86ec17ae03e78556ab6fe359967e20a9a74e1
+    size_bytes: 16065
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2813; GDC file f0cd75c2-8250-4b86-9dbd-6a985f80d293"
+  - url: https://api.gdc.cancer.gov/data/102a008c-41c5-48a8-94d2-54c5b3e68f5e
+    path: tcga-laml/ascat/TCGA-AB-2818__TCGA-LAML.f6dd515f-19e2-4e36-87f3-a92c49002bb4.ascat2.allelic_specific.seg.txt
+    sha256: 6089b4be1b83a8fcd085756c524a1fab9445da4990e9181efe7c5b5f710e5e05
+    size_bytes: 11198
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2818; GDC file 102a008c-41c5-48a8-94d2-54c5b3e68f5e"
+  - url: https://api.gdc.cancer.gov/data/a961f527-3078-4980-b21c-39c99468295c
+    path: tcga-laml/ascat/TCGA-AB-2821__TCGA-LAML.3f2b4812-d558-47da-98e3-c9d7b3b903e8.ascat2.allelic_specific.seg.txt
+    sha256: e16efd84b7ab09b60cdef817c6e4b2ba60bebc575828766cf3c57f1c6c4cc554
+    size_bytes: 5913
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2821; GDC file a961f527-3078-4980-b21c-39c99468295c"
+  - url: https://api.gdc.cancer.gov/data/aaa856cd-7b29-464a-af94-77b5ca6f2494
+    path: tcga-laml/ascat/TCGA-AB-2829__TCGA-LAML.0758d64e-8a4a-4e64-b2aa-7c42884c85a6.ascat2.allelic_specific.seg.txt
+    sha256: 8b85a4bdd7d8715bb6bec22bd850d6cd31caea4d2bf309fa8d7d20876533ff9b
+    size_bytes: 9835
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2829; GDC file aaa856cd-7b29-464a-af94-77b5ca6f2494"
+  - url: https://api.gdc.cancer.gov/data/fc61ae29-6285-4830-b79d-8cda0b08e8fe
+    path: tcga-laml/ascat/TCGA-AB-2838__TCGA-LAML.0e1404fb-b85d-4372-8deb-20869148b6d1.ascat2.allelic_specific.seg.txt
+    sha256: 83635da76bc06aed9f5bc37bd1c051f19c02613d4dffcba46c7b8a2f03b6f8fd
+    size_bytes: 6392
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2838; GDC file fc61ae29-6285-4830-b79d-8cda0b08e8fe"
+  - url: https://api.gdc.cancer.gov/data/61524805-3859-41e8-86bc-2f666142d129
+    path: tcga-laml/ascat/TCGA-AB-2841__TCGA-LAML.a3dd52d7-4154-4566-844d-5bf0839aab30.ascat2.allelic_specific.seg.txt
+    sha256: 40b20faf9842bcd50d764a40a73e9628c3394271117942404e5cf1607815f14f
+    size_bytes: 9798
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2841; GDC file 61524805-3859-41e8-86bc-2f666142d129"
+  - url: https://api.gdc.cancer.gov/data/45fd1177-3d4b-43e1-8e66-7c387d64721a
+    path: tcga-laml/ascat/TCGA-AB-2846__TCGA-LAML.b11be6e4-efd1-4b96-8621-6574aeb52bb9.ascat2.allelic_specific.seg.txt
+    sha256: d2f3b40e6a8a460edfc2d86f2c1355e36f40f0c5d1c9a3e685177bbba0aed7ac
+    size_bytes: 5228
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2846; GDC file 45fd1177-3d4b-43e1-8e66-7c387d64721a"
+  - url: https://api.gdc.cancer.gov/data/c163f1f7-8e89-48ff-985d-5a054cbad954
+    path: tcga-laml/ascat/TCGA-AB-2868__TCGA-LAML.caf8200b-ef90-44cc-a093-9b198a24debd.ascat2.allelic_specific.seg.txt
+    sha256: 6c0f0720403e8ef16ce3d70dbea9df2eb6125f7d509635b370cf6399a0725356
+    size_bytes: 9451
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2868; GDC file c163f1f7-8e89-48ff-985d-5a054cbad954"
+  - url: https://api.gdc.cancer.gov/data/4536fe06-cbe0-4cde-b408-7e5861abea70
+    path: tcga-laml/ascat/TCGA-AB-2885__TCGA-LAML.e984035c-a851-4add-b2fc-3793d96e091f.ascat2.allelic_specific.seg.txt
+    sha256: d6f40d403a3f24426709ef6c58717c09fa3d53912188e80d5cc78fff4051d7c5
+    size_bytes: 9155
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2885; GDC file 4536fe06-cbe0-4cde-b408-7e5861abea70"
+  - url: https://api.gdc.cancer.gov/data/4dc1919c-65d6-42d7-9c2a-cd2eaf528ba0
+    path: tcga-laml/ascat/TCGA-AB-2904__TCGA-LAML.81f7f33f-6070-46f2-ab12-a1e694ede11a.ascat2.allelic_specific.seg.txt
+    sha256: 01827da281610eaf66623713356c9c72d149c8362aba63cde45de181f45e578d
+    size_bytes: 8626
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2904; GDC file 4dc1919c-65d6-42d7-9c2a-cd2eaf528ba0"
+  - url: https://api.gdc.cancer.gov/data/6f702ac1-5127-412e-accf-2292bee0777d
+    path: tcga-laml/ascat/TCGA-AB-2913__TCGA-LAML.c1fda11f-6b38-421f-83f1-cb3f1074f858.ascat2.allelic_specific.seg.txt
+    sha256: 7c06d39af0027398f79cceb4d490aae3fa5a98242749ba3b0c80f712babc1749
+    size_bytes: 5732
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2913; GDC file 6f702ac1-5127-412e-accf-2292bee0777d"
+  - url: https://api.gdc.cancer.gov/data/761fdf0d-4105-4c99-8f13-0ba492fa0127
+    path: tcga-laml/ascat/TCGA-AB-2931__TCGA-LAML.9f52a394-4db8-4ee5-98cc-57d390f3a1ad.ascat2.allelic_specific.seg.txt
+    sha256: dff8e5bbdc241b500e23777fed111b71357fc8ee972031453e38f62f335dc17d
+    size_bytes: 5044
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2931; GDC file 761fdf0d-4105-4c99-8f13-0ba492fa0127"
+  - url: https://api.gdc.cancer.gov/data/9f098be7-5e03-42e4-8f96-62f06c361a83
+    path: tcga-laml/ascat/TCGA-AB-2935__TCGA-LAML.8ec04ff3-12f2-4199-9a4a-e88e5738eb39.ascat2.allelic_specific.seg.txt
+    sha256: 89b36612561984ccc3298b59912b31b09e0171988c7d3d14e8c5bb2db7a799e8
+    size_bytes: 7629
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2935; GDC file 9f098be7-5e03-42e4-8f96-62f06c361a83"
+  - url: https://api.gdc.cancer.gov/data/7dcfc688-cde7-42fe-8873-0b0d8fbc544d
+    path: tcga-laml/ascat/TCGA-AB-2938__TCGA-LAML.bc7a1f2a-e1b0-4a7e-bc8d-f3cd7d4b3a46.ascat2.allelic_specific.seg.txt
+    sha256: 356ebd5fa8b1e8f2bab8c862fb1468e1a34b5798f5309872c39abf326def04fd
+    size_bytes: 8908
+    license: NIH GDC Data Use Agreement (open tier)
+    source: "TCGA-LAML ASCAT2 allele-specific CN segments; cohort patient TCGA-AB-2938; GDC file 7dcfc688-cde7-42fe-8873-0b0d8fbc544d"

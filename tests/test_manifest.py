@@ -48,16 +48,25 @@ class TestManifestIsReal:
         seen_paths: set[str] = set()
         for e in inputs:
             assert e["url"].startswith(gdc.GDC_DATA_URL + "/"), e["url"]
-            assert e["path"].startswith("tcga-laml/mafs/")
-            assert e["path"].endswith(".maf.gz")
+            # Two open-tier groups: per-aliquot MAFs, and Arm-3 ASCAT segments.
+            assert e["path"].startswith(("tcga-laml/mafs/", "tcga-laml/ascat/")), e["path"]
+            assert e["path"].endswith((".maf.gz", ".seg.txt"))
             assert HEX64.match(e["sha256"]), f"input {e['path']} has a non-real sha256"
             assert e["sha256"] != STUB_SHA
             assert e["path"] not in seen_paths, f"duplicate path {e['path']}"
             seen_paths.add(e["path"])
 
-    def test_url_and_path_uuid_agree(self):
-        # path is <file_id>.maf.gz; url is .../data/<file_id> — they must match.
-        for e in _load()["inputs"]:
+    def test_input_group_counts(self):
+        inputs = _load()["inputs"]
+        mafs = [e for e in inputs if e["path"].startswith("tcga-laml/mafs/")]
+        ascat = [e for e in inputs if e["path"].startswith("tcga-laml/ascat/")]
+        assert len(mafs) == 153, f"expected 153 MAFs, got {len(mafs)}"
+        assert len(ascat) == 15, f"expected 15 cohort ASCAT segments, got {len(ascat)}"
+
+    def test_maf_url_and_path_uuid_agree(self):
+        # MAF path is <file_id>.maf.gz; url is .../data/<file_id> — must match.
+        mafs = [e for e in _load()["inputs"] if e["path"].startswith("tcga-laml/mafs/")]
+        for e in mafs:
             file_id = e["url"].rsplit("/", 1)[1]
             assert e["path"] == f"tcga-laml/mafs/{file_id}.maf.gz"
 

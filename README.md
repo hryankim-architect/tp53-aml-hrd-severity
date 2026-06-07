@@ -133,9 +133,10 @@ make data                     # ~1.6 MB total; re-runs are a no-op (hash-verifie
 
 # 3. Run the end-to-end pipeline
 make run                      # writes 3 files to artifacts/, < 2 seconds
-#    Note: the Arm-3 HRD-scar score additionally fetches per-cohort ASCAT copy-
-#    number segments from GDC at run time (cohort is seed-derived). It is cached
-#    and gracefully skipped if offline, so the TP53 path still completes.
+#    Note: the Arm-3 HRD-scar score uses the 15 cohort ASCAT segments that
+#    `make data` pins + fetches into data/tcga-laml/ascat/. If make data was
+#    skipped, run-time fetches them from GDC and is gracefully skipped offline,
+#    so the TP53 path still completes either way.
 
 # 4. Run the test suite (~120 tests, includes fixture-based integration)
 make test

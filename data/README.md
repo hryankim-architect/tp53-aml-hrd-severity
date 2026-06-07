@@ -25,9 +25,10 @@ python -m tp53_hrd.pipeline fetch --write-checksums  # download + fill sha256
 then review the diff and commit. Keep inputs small and necessary: **every entry
 needs a reason**. Adding one is a PR-sized decision, not a casual edit.
 
-> The Arm-3 HRD-scar score also fetches per-cohort ASCAT copy-number segments
-> from GDC at run time (the cohort is seed-derived, so the set is not static);
-> those are cached under `artifacts/`, not pinned here.
+The manifest also pins the **15 Arm-3 ASCAT2 allele-specific CN segments** (one
+per seed=42 cohort patient) under `tcga-laml/ascat/`. `make data` fetches +
+checksum-verifies them like the MAFs; `scar_data` reads that cache and only
+falls back to a run-time GDC fetch for anything missing.
 
 If you need a tiny fixture inside the repo (e.g. for tests), put it under
 `tests/fixtures/`, not here.
