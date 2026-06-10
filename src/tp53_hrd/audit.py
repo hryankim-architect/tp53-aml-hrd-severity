@@ -13,7 +13,7 @@ The schema mirrors the audit format::
     {
         "ts": "2026-05-23T17:00:00Z",
         "action": "pipeline_start",
-        "actor": "tp53_hrd@chi-mac-p",
+        "actor": "tp53_hrd@localhost",
         "job_id": "demo-2026-05-23-17",
         "fields": {...arbitrary payload...},
         "prev_hash": "...",

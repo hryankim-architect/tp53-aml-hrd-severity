@@ -259,7 +259,7 @@ demo runs cleanly without the substrate present:
 | `TP53_HRD_CANARY_FIXTURE` | `tests/fixtures/canary.json` | Path used by `canary.py` for the deterministic smoke test. |
 
 On a lab node, `scripts/run_lab.sh` exports these to the lab
-defaults (`chi-mac-m:8081`, `chi-mac-m:5050`) before invoking `make run`.
+defaults (`localhost:8081`, `localhost:5050`) before invoking `make run`.
 
 ---
 
