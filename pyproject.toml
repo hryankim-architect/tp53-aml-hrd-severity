@@ -1,6 +1,6 @@
 [project]
 name = "tp53_hrd"
-version = "0.1.0"
+version = "0.3.0"
 description = "TP53-driven HRD severity score for AML, validated against TCGA-LAML survival outcomes (capability portrait)."
 readme = "README.md"
 license = { text = "MIT" }
