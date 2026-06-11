@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import time
 import urllib.error
@@ -61,6 +62,23 @@ CLINICAL_JSON = Path("data/tcga-laml/clinical.json")
 ASCAT_DIR = Path("data/tcga-laml/ascat")
 
 
+class AssetUnavailable(RuntimeError):
+    """A required input is absent and downloads are disabled (offline mode).
+
+    Mirrors _offline/bin/offline_guard.py semantics; kept inline so this repo
+    stays self-sufficient (no cross-repo import at runtime).
+    """
+
+
+def _downloads_allowed() -> bool:
+    """Reach the network only when explicitly opted in via AI_ALLOW_DOWNLOAD=1.
+
+    Default (unset/0) is fully offline: cached inputs are used; a missing input
+    yields a clear, actionable error instead of a silent fetch.
+    """
+    return os.environ.get("AI_ALLOW_DOWNLOAD", "") not in ("", "0", "false", "False")
+
+
 def _run_id(name: str) -> str:
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     return f"{name}-{stamp}"
@@ -81,6 +99,12 @@ def _download(url: str, dest: Path, *, timeout: float = 60.0, retries: int = 4) 
     of 150+ small files can hang indefinitely. We read the whole response (these
     inputs are KB-scale) and write atomically only on success.
     """
+    if not _downloads_allowed():
+        raise AssetUnavailable(
+            f"{dest.name} is not cached and downloads are disabled (offline mode).\n"
+            f"  expected at: {dest}\n  source url:  {url}\n"
+            f"  Seed once with: AI_ALLOW_DOWNLOAD=1 _offline/bin/seed-assets.sh tp53-aml-hrd-severity"
+        )
     dest.parent.mkdir(parents=True, exist_ok=True)
     last: Exception | None = None
     for attempt in range(retries):

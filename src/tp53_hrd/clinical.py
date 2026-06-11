@@ -27,6 +27,13 @@ import pandas as pd
 
 GDC_CASES_URL = "https://api.gdc.cancer.gov/cases"
 
+
+def _downloads_allowed() -> bool:
+    """Reach the GDC API only when AI_ALLOW_DOWNLOAD=1 (default: offline)."""
+    import os
+    return os.environ.get("AI_ALLOW_DOWNLOAD", "") not in ("", "0", "false", "False")
+
+
 CLINICAL_FIELDS = [
     "submitter_id",
     "demographic.vital_status",
@@ -42,6 +49,12 @@ def fetch_tcga_laml_clinical(out_path: Path | None = None, timeout: float = 30.0
     Returns the parsed JSON. If ``out_path`` is supplied, the raw JSON is also
     written there for reproducibility (and to skip re-fetching on later runs).
     """
+    if not _downloads_allowed():
+        raise RuntimeError(
+            "GDC clinical fetch required but downloads are disabled (offline mode): "
+            f"{GDC_CASES_URL}\n  Seed once with AI_ALLOW_DOWNLOAD=1, or provide a cached "
+            "clinical.json under data/tcga-laml/."
+        )
     payload = {
         "filters": {
             "op": "in",

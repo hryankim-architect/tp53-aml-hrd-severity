@@ -25,6 +25,19 @@ GDC_FILES_URL = "https://api.gdc.cancer.gov/files"
 GDC_CASES_URL = "https://api.gdc.cancer.gov/cases"
 GDC_DATA_URL = "https://api.gdc.cancer.gov/data"
 
+
+def _downloads_allowed() -> bool:
+    """Reach the GDC API only when AI_ALLOW_DOWNLOAD=1 (default: offline)."""
+    import os
+    return os.environ.get("AI_ALLOW_DOWNLOAD", "") not in ("", "0", "false", "False")
+
+
+_OFFLINE_MSG = (
+    "GDC access required but downloads are disabled (offline mode): {url}\n"
+    "  Seed once with AI_ALLOW_DOWNLOAD=1 (e.g. _offline/bin/seed-assets.sh "
+    "tp53-aml-hrd-severity), or place cached inputs under data/tcga-laml/."
+)
+
 # Deterministic filter for the TCGA-LAML open-tier somatic MAF set.
 MAF_FILTERS: dict[str, Any] = {
     "op": "and",
@@ -50,6 +63,8 @@ CLINICAL_SIZE = 500
 
 
 def _post(url: str, payload: dict[str, Any], timeout: float = 60.0) -> dict[str, Any]:
+    if not _downloads_allowed():
+        raise RuntimeError(_OFFLINE_MSG.format(url=url))
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -135,6 +150,8 @@ def clinical_query() -> dict[str, Any]:
 
 def fetch_clinical_raw(timeout: float = 60.0) -> bytes:
     """Fetch the raw clinical JSON bytes (byte-stable for a fixed query)."""
+    if not _downloads_allowed():
+        raise RuntimeError(_OFFLINE_MSG.format(url=GDC_CASES_URL))
     req = urllib.request.Request(
         GDC_CASES_URL,
         data=json.dumps(clinical_query()).encode("utf-8"),

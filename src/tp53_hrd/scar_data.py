@@ -19,7 +19,22 @@ GDC_FILES = "https://api.gdc.cancer.gov/files"
 GDC_DATA = "https://api.gdc.cancer.gov/data"
 
 
+def _downloads_allowed() -> bool:
+    """Reach the GDC API only when AI_ALLOW_DOWNLOAD=1 (default: offline)."""
+    import os
+    return os.environ.get("AI_ALLOW_DOWNLOAD", "") not in ("", "0", "false", "False")
+
+
+_OFFLINE_MSG = (
+    "GDC ASCAT access required but downloads are disabled (offline mode): {url}\n"
+    "  Seed once with AI_ALLOW_DOWNLOAD=1, or place cached segments under "
+    "data/tcga-laml/ascat/."
+)
+
+
 def _gdc_post(url: str, payload: dict) -> dict:
+    if not _downloads_allowed():
+        raise RuntimeError(_OFFLINE_MSG.format(url=url))
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -73,6 +88,8 @@ def find_ascat_file_for_patient(submitter_id: str) -> dict | None:
 
 def download_file(file_id: str, dest: Path) -> Path:
     """Download a GDC file (open tier; no token needed)."""
+    if not _downloads_allowed():
+        raise RuntimeError(_OFFLINE_MSG.format(url=f"{GDC_DATA}/{file_id}"))
     url = f"{GDC_DATA}/{urllib.parse.quote(file_id)}"
     dest.parent.mkdir(parents=True, exist_ok=True)
     urllib.request.urlretrieve(url, dest)
